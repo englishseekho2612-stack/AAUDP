@@ -1,0 +1,6 @@
+{
+  "name": "ARPIT ACADEMY UDAIPURA",
+  "description": "Arpit Academy Udaipura - Learn • Teach • Understand. With Arpit Sir. Professional educational studio for teachers and students with curriculum, interactive classrooms, and learning portals.",
+  "requestFramePermissions": ["camera", "microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

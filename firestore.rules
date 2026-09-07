@@ -1,0 +1,108 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions for Role-Based Access Control (RBAC)
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isTeacher(classCode) {
+      return isSignedIn() && (
+        request.auth.uid == get(/databases/$(database)/documents/classrooms/$(classCode)).data.teacherId ||
+        request.auth.token.role == 'teacher'
+      );
+    }
+
+    function isClassParticipant(classCode) {
+      return isSignedIn();
+    }
+
+    // -------------------------------------------------------------------------
+    // 1. TEACHER PERSONAL PROJECTS (Strict Zero-Access for Students)
+    // -------------------------------------------------------------------------
+    match /projects/{projectId} {
+      // Only the authenticated teacher who owns the project can read or modify it.
+      // Students can NEVER read teacher notes, raw sources, AI outputs, or recordings.
+      allow read, write: if isSignedIn() && request.auth.uid == resource.data.teacherId;
+
+      match /{allSubcollections=**} {
+        allow read, write: if isSignedIn() && request.auth.uid == get(/databases/$(database)/documents/projects/$(projectId)).data.teacherId;
+      }
+    }
+
+    // -------------------------------------------------------------------------
+    // 2. CLASSROOMS & PUBLIC METADATA
+    // -------------------------------------------------------------------------
+    match /classrooms/{classCode} {
+      // Anyone signed in (student or teacher) can look up public class info with the code.
+      allow read: if isSignedIn();
+
+      // Only the authenticated teacher can create or update the classroom configuration.
+      allow create: if isSignedIn() && request.resource.data.teacherId == request.auth.uid;
+      allow update, delete: if isTeacher(classCode);
+
+      // 2a. Broadcast State (Current slide, whiteboard snapshot, camera toggle)
+      match /broadcast/{broadcastId} {
+        allow read: if isSignedIn();
+        allow write: if isTeacher(classCode);
+      }
+
+      // 2b. Student Questions & Private Messages (Strict Teacher-Only Privacy)
+      match /questions/{questionId} {
+        // Students can ONLY read their OWN questions OR questions published by the teacher.
+        // Student A can NEVER read Student B's private messages!
+        allow read: if isTeacher(classCode) || 
+                      (isSignedIn() && (
+                        resource.data.studentId == request.auth.uid || 
+                        resource.data.isPublished == true
+                      ));
+
+        // Students can only create a question with their own ID.
+        allow create: if isSignedIn() && 
+                         request.resource.data.studentId == request.auth.uid &&
+                         request.resource.data.message is string &&
+                         request.resource.data.message.size() <= 500;
+
+        // Only teacher can reply, update status, publish, or delete questions.
+        allow update, delete: if isTeacher(classCode);
+      }
+
+      // 2c. Pulse Polls & Timed MCQs
+      match /polls/{pollId} {
+        allow read: if isSignedIn();
+        allow write: if isTeacher(classCode);
+
+        // Student votes subcollection
+        match /votes/{studentId} {
+          allow read: if isTeacher(classCode) || request.auth.uid == studentId;
+          allow create, update: if isSignedIn() && request.auth.uid == studentId;
+          allow delete: if isTeacher(classCode);
+        }
+      }
+
+      // 2d. Attendance & Audit Logs (Teacher ONLY)
+      match /attendance/{attendanceId} {
+        allow read, write: if isTeacher(classCode);
+      }
+
+      match /audit_logs/{logId} {
+        allow read: if isTeacher(classCode);
+        allow create: if isSignedIn(); // System events
+        allow update, delete: if false; // Immutable audit trail
+      }
+
+      // 2e. Participants list
+      match /participants/{participantId} {
+        allow read: if isSignedIn();
+        allow create, update: if isSignedIn() && (request.auth.uid == participantId || isTeacher(classCode));
+        allow delete: if isTeacher(classCode);
+      }
+    }
+
+    // Default deny all other unspecified collections
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
