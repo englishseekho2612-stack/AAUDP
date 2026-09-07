@@ -173,7 +173,7 @@ export const ProjectDashboard: React.FC<ProjectDashboardProps> = ({ onBack }) =>
     if (!output) return null;
 
     const commonProps = {
-      output,
+      output: output as any,
       language: activeProject.language,
       onSaveTeacherEdits: (edited: any) => updateProjectOutputTeacherEdits(activeOutputViewer, edited),
       onRestoreAI: () => restoreProjectOutputToAI(activeOutputViewer),

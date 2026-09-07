@@ -140,7 +140,7 @@ export const StudentPortalView: React.FC<StudentPortalViewProps> = ({ onJoinLive
             >
               {students.map((st) => (
                 <option key={st.id} value={st.id}>
-                  {st.displayName} ({st.classGrade})
+                  {st.displayName} {st.classGrade ? `(${st.classGrade})` : ''}
                 </option>
               ))}
             </select>

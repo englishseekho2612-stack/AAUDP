@@ -26,6 +26,7 @@ import { DataRecoveryBanner } from './components/common/DataRecoveryBanner';
 import { FirstLaunchModal } from './components/common/FirstLaunchModal';
 import { CurriculumHubView } from './views/CurriculumHubView';
 import { StudentPortalView } from './views/StudentPortalView';
+import { ErrorBoundary } from './components/common/ErrorBoundary';
 
 const StudioMainLayout: React.FC = () => {
   const { activeProject, projects, openProject, closeProject } = useProject();
@@ -72,19 +73,23 @@ const StudioMainLayout: React.FC = () => {
   // Dedicated full-screen Student Classroom View (Section 6 & 24)
   if (currentView === 'student_classroom') {
     return (
-      <StudentClassroomView
-        initialClassCode={studentClassCode}
-        onExit={() => setCurrentView('classroom_hub')}
-      />
+      <ErrorBoundary fallbackTitle="Classroom View Error" onReset={() => setCurrentView('classroom_hub')}>
+        <StudentClassroomView
+          initialClassCode={studentClassCode}
+          onExit={() => setCurrentView('classroom_hub')}
+        />
+      </ErrorBoundary>
     );
   }
 
   // Dedicated full-screen AI Video Editor (Part 06)
   if (currentView === 'video_editor') {
     return (
-      <VideoEditorView
-        onExit={() => setCurrentView(activeProject ? 'project_dashboard' : 'projects')}
-      />
+      <ErrorBoundary fallbackTitle="Video Editor Error" onReset={() => setCurrentView(activeProject ? 'project_dashboard' : 'projects')}>
+        <VideoEditorView
+          onExit={() => setCurrentView(activeProject ? 'project_dashboard' : 'projects')}
+        />
+      </ErrorBoundary>
     );
   }
 
@@ -113,87 +118,74 @@ const StudioMainLayout: React.FC = () => {
           id="app-main-viewport"
           className="flex-1 overflow-y-auto px-4 py-6 sm:px-6 sm:py-8 md:px-8 focus:outline-none"
         >
-          {currentView === 'home' && (
-            <HomeView
-              onNavigate={handleNavigate}
-              onOpenProject={handleOpenProject}
-            />
-          )}
-
-          {currentView === 'projects' && (
-            <ProjectsView
-              onOpenProject={handleOpenProject}
-              onCreateNew={() => setCurrentView('create')}
-            />
-          )}
-
-          {currentView === 'curriculum' && (
-            <CurriculumHubView
-              onOpenTeachingStudio={(projectId) => handleStartTeachingStudio('STUDIO1', projectId)}
-              onOpenClassroomHub={() => setCurrentView('classroom_hub')}
-            />
-          )}
-
-          {currentView === 'student_portal' && (
-            <StudentPortalView
-              onJoinLiveClass={(code) => handleJoinAsStudent(code)}
-            />
-          )}
-
-          {currentView === 'create' && (
-            <CreateProjectView
-              onCancel={() => setCurrentView('projects')}
-              onProjectCreated={handleOpenProject}
-            />
-          )}
-
-          {currentView === 'project_dashboard' && (
-            <ProjectDashboard onBack={handleBackToProjects} />
-          )}
-
-          {currentView === 'classroom_hub' && (
-            <ClassroomHubView
-              onStartTeachingStudio={handleStartTeachingStudio}
-              onJoinAsStudent={handleJoinAsStudent}
-              projects={projects}
-              activeProjectId={activeProject?.id}
-            />
-          )}
-
-          {currentView === 'teaching' && (
-            <TeachingView
-              initialStudioOpen={autoOpenTeachingStudio}
-              classCode={activeTeachingClassCode}
-              onOpenLiveStudentView={handleJoinAsStudent}
-              onOpenClassroomHub={() => setCurrentView('classroom_hub')}
-              onOpenVideoEditor={() => setCurrentView('video_editor')}
-            />
-          )}
-
-          {currentView === 'video_editor' && (
-            <div className="fixed inset-0 z-50 bg-slate-950">
-              <VideoEditorView onExit={() => setCurrentView('projects')} />
-            </div>
-          )}
-
-          {currentView === 'student_classroom' && (
-            <div className="fixed inset-0 z-50 bg-slate-950">
-              <StudentClassroomView
-                initialClassCode={studentClassCode}
-                onExit={() => setCurrentView('classroom_hub')}
+          <ErrorBoundary fallbackTitle="View Error" onReset={() => setCurrentView('home')}>
+            {currentView === 'home' && (
+              <HomeView
+                onNavigate={handleNavigate}
+                onOpenProject={handleOpenProject}
               />
-            </div>
-          )}
+            )}
 
-          {currentView === 'storage_manager' && (
-            <StorageManagerView onBack={() => setCurrentView('projects')} />
-          )}
+            {currentView === 'projects' && (
+              <ProjectsView
+                onOpenProject={handleOpenProject}
+                onCreateNew={() => setCurrentView('create')}
+              />
+            )}
 
-          {currentView === 'system_qa' && (
-            <SystemQADashboardView onBack={() => setCurrentView('home')} />
-          )}
+            {currentView === 'curriculum' && (
+              <CurriculumHubView
+                onOpenTeachingStudio={(projectId) => handleStartTeachingStudio('STUDIO1', projectId)}
+                onOpenClassroomHub={() => setCurrentView('classroom_hub')}
+              />
+            )}
 
-          {currentView === 'settings' && <SettingsView onNavigate={setCurrentView} />}
+            {currentView === 'student_portal' && (
+              <StudentPortalView
+                onJoinLiveClass={(code) => handleJoinAsStudent(code)}
+              />
+            )}
+
+            {currentView === 'create' && (
+              <CreateProjectView
+                onCancel={() => setCurrentView('projects')}
+                onProjectCreated={handleOpenProject}
+              />
+            )}
+
+            {currentView === 'project_dashboard' && (
+              <ProjectDashboard onBack={handleBackToProjects} />
+            )}
+
+            {currentView === 'classroom_hub' && (
+              <ClassroomHubView
+                onStartTeachingStudio={handleStartTeachingStudio}
+                onJoinAsStudent={handleJoinAsStudent}
+                projects={projects}
+                activeProjectId={activeProject?.id}
+              />
+            )}
+
+            {currentView === 'teaching' && (
+              <TeachingView
+                initialStudioOpen={autoOpenTeachingStudio}
+                classCode={activeTeachingClassCode}
+                onOpenLiveStudentView={handleJoinAsStudent}
+                onOpenClassroomHub={() => setCurrentView('classroom_hub')}
+                onOpenVideoEditor={() => setCurrentView('video_editor')}
+              />
+            )}
+
+            {currentView === 'storage_manager' && (
+              <StorageManagerView onBack={() => setCurrentView('projects')} />
+            )}
+
+            {currentView === 'system_qa' && (
+              <SystemQADashboardView onBack={() => setCurrentView('home')} />
+            )}
+
+            {currentView === 'settings' && <SettingsView onNavigate={setCurrentView} />}
+          </ErrorBoundary>
         </main>
       </div>
 

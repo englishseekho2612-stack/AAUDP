@@ -155,7 +155,7 @@ export const CreateClassModal: React.FC<CreateClassModalProps> = ({
                 <option value="">None (Start with blank canvas)</option>
                 {projects.map((p) => (
                   <option key={p.id} value={p.id}>
-                    {p.title} ({p.subject})
+                    {p.name} {p.subject ? `(${p.subject})` : ''}
                   </option>
                 ))}
               </select>

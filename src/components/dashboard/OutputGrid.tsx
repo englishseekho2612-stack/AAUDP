@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 
 interface OutputGridProps {
-  outputs: Record<AIOutputType, ProjectAIOutput>;
+  outputs: Partial<Record<AIOutputType, ProjectAIOutput>>;
   onTriggerOutput: (type: AIOutputType) => void;
   onOpenCreateWithAI?: (preselectedType?: AIOutputType) => void;
 }

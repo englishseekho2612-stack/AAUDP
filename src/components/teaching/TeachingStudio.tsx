@@ -691,6 +691,7 @@ export const TeachingStudio: React.FC<TeachingStudioProps> = ({
                   <VisualTreeCanvas
                     content={
                       mindMapContent || {
+                        id: 'fallback_tree',
                         title: activeProject?.name || 'Curriculum Knowledge Tree',
                         summary: 'Hierarchical conceptual framework',
                         displayMode: 'tree',

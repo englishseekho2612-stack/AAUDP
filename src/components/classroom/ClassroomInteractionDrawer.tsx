@@ -37,7 +37,8 @@ interface ClassroomInteractionDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   classCode: string;
-  session: ClassroomSession | null;
+  session?: ClassroomSession | null;
+  className?: string;
   onSessionUpdated?: (updated: ClassroomSession) => void;
   availableQuizQuestions?: {
     id: string;

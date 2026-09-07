@@ -41,6 +41,7 @@ export type PracticeDifficulty = 'basic' | 'standard' | 'advanced';
 export interface StudentProfile {
   id: string; // e.g., "std_alex_morgan"
   displayName: string;
+  classGrade?: string;
   avatarColor: string;
   enrolledCourseIds: string[];
   enrolledClassCodes: string[];

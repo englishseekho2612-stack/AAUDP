@@ -17,7 +17,7 @@ export interface ClassroomPrivacyBoundaries {
 }
 
 export interface ClassroomBroadcastState {
-  contentMode: 'slides' | 'mind_map' | 'whiteboard' | 'camera_content' | 'screen_share';
+  contentMode: 'slides' | 'mind_map' | 'visual_tree' | 'whiteboard' | 'camera_content' | 'screen_share';
   currentSlideIndex: number;
   totalSlides: number;
   selectedMindMapNodeId?: string | null;

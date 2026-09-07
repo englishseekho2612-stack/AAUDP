@@ -42,8 +42,10 @@ export interface CreateWithAIModalProps {
   isOpen: boolean;
   project: TeachingProject;
   initialTask?: AITaskType;
+  preselectedTaskType?: AIOutputType;
   onClose: () => void;
-  onOutputGenerated: (type: AIOutputType, output: ProjectAIOutput) => void;
+  onOutputGenerated?: (type: AIOutputType, output: ProjectAIOutput) => void;
+  onGenerated?: (type: AIOutputType) => void;
 }
 
 interface TaskCardInfo {
@@ -117,10 +119,13 @@ export const CreateWithAIModal: React.FC<CreateWithAIModalProps> = ({
   isOpen,
   project,
   initialTask = 'mind_map',
+  preselectedTaskType,
   onClose,
   onOutputGenerated,
+  onGenerated,
 }) => {
-  const [selectedTask, setSelectedTask] = useState<AITaskType>(initialTask);
+  const effectiveInitialTask = (preselectedTaskType as AITaskType) || initialTask;
+  const [selectedTask, setSelectedTask] = useState<AITaskType>(effectiveInitialTask);
   const [selectedSourceIds, setSelectedSourceIds] = useState<string[]>([]);
   const [selectAllSources, setSelectAllSources] = useState<boolean>(true);
   const [instructions, setInstructions] = useState<string>(project.teacherInstructions || '');
@@ -278,7 +283,8 @@ export const CreateWithAIModal: React.FC<CreateWithAIModalProps> = ({
         ],
       };
 
-      onOutputGenerated(selectedTask, newOutput);
+      onOutputGenerated?.(selectedTask, newOutput);
+      onGenerated?.(selectedTask);
       setIsGenerating(false);
       onClose();
     } catch (err: any) {

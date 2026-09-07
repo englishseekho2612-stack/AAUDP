@@ -101,7 +101,7 @@ export const StudentQuizRunnerModal: React.FC<StudentQuizRunnerModalProps> = ({
     setIsHintLoading(true);
     setHintContent(null);
     const res = await studentPortalService.requestAiHint({
-      question: q.text,
+      question: q.questionText,
       context: `Topic: ${q.topicId || 'Science'}. Type: ${q.type}`,
       studentName: student.displayName,
     });
@@ -226,7 +226,7 @@ export const StudentQuizRunnerModal: React.FC<StudentQuizRunnerModalProps> = ({
                         </span>
                       </div>
                       <p className="text-xs text-slate-800 dark:text-slate-200 font-medium">
-                        {q?.text}
+                        {q?.questionText}
                       </p>
                       {ans.feedback && (
                         <p className="text-[11px] text-slate-500 mt-2 italic">
@@ -289,7 +289,7 @@ export const StudentQuizRunnerModal: React.FC<StudentQuizRunnerModalProps> = ({
                   </div>
 
                   <h3 className="text-base font-bold text-slate-900 dark:text-slate-100 leading-snug">
-                    {currentQ.text}
+                    {currentQ.questionText}
                   </h3>
 
                   {/* AI Hint Box if requested */}
@@ -306,7 +306,7 @@ export const StudentQuizRunnerModal: React.FC<StudentQuizRunnerModalProps> = ({
                         const isSelected = selectedAnswers[currentQ.id]?.optionIndex === optIdx;
                         return (
                           <div
-                            key={opt.id || optIdx}
+                            key={optIdx}
                             onClick={() => handleSelectOption(currentQ.id, optIdx)}
                             className={`p-3.5 rounded-2xl border cursor-pointer transition-all flex items-center gap-3 ${
                               isSelected
@@ -317,13 +317,13 @@ export const StudentQuizRunnerModal: React.FC<StudentQuizRunnerModalProps> = ({
                             <div
                               className={`w-5 h-5 rounded-full border flex items-center justify-center text-[10px] font-bold ${
                                 isSelected
-                                  ? 'border-indigo-600 bg-indigo-600 text-white'
-                                  : 'border-slate-300 text-slate-500'
+                                ? 'border-indigo-600 bg-indigo-600 text-white'
+                                : 'border-slate-300 text-slate-500'
                               }`}
                             >
                               {String.fromCharCode(65 + optIdx)}
                             </div>
-                            <span className="text-xs sm:text-sm">{opt.text}</span>
+                            <span className="text-xs sm:text-sm">{opt}</span>
                           </div>
                         );
                       })}

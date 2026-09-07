@@ -24,6 +24,7 @@ import {
   Check,
   X,
   Edit3,
+  Download,
 } from 'lucide-react';
 
 interface TeacherAssessmentReviewTabProps {
@@ -155,56 +156,94 @@ export const TeacherAssessmentReviewTab: React.FC<TeacherAssessmentReviewTabProp
     loadAllData();
   };
 
+  const handleExportAnalyticsReport = () => {
+    const csvRows: string[] = [
+      'Record Type,Student Name,Title / Topic,Score,Max Score,Status,Feedback,Date',
+    ];
+
+    submissions.forEach((s) => {
+      csvRows.push(
+        `"Assignment","${s.studentName || 'Student'}","Assignment ${s.assignmentId}","${s.score ?? 'Ungraded'}","${s.maxScore}","${s.status}","${(s.feedback || '').replace(/"/g, '""')}","${new Date(s.submittedAt).toLocaleDateString()}"`
+      );
+    });
+
+    quizAttempts.forEach((q) => {
+      csvRows.push(
+        `"Quiz","${q.studentName || 'Student'}","Quiz ${q.quizId}","${q.score}","${q.maxScore}","completed","${(q.aiAnalysis?.summary || '').replace(/"/g, '""')}","${new Date(q.completedAt).toLocaleDateString()}"`
+      );
+    });
+
+    const csvContent = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csvRows.join('\n'));
+    const link = document.createElement('a');
+    link.setAttribute('href', csvContent);
+    link.setAttribute('download', `${course.name.replace(/[^a-zA-Z0-9]/g, '_')}_Analytics_Report.csv`);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  };
+
   return (
     <div className="space-y-6">
       {/* Sub Tab Navigation */}
-      <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-3">
-        <button
-          onClick={() => setSubTab('submissions')}
-          className={`px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 cursor-pointer transition-colors ${
-            subTab === 'submissions'
-              ? 'bg-indigo-600 text-white'
-              : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
-          }`}
-        >
-          <FileText className="w-4 h-4" />
-          <span>Assignment Submissions ({submissions.length})</span>
-        </button>
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 dark:border-slate-800 pb-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={() => setSubTab('submissions')}
+            className={`px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 cursor-pointer transition-colors ${
+              subTab === 'submissions'
+                ? 'bg-indigo-600 text-white'
+                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+            }`}
+          >
+            <FileText className="w-4 h-4" />
+            <span>Assignment Submissions ({submissions.length})</span>
+          </button>
 
-        <button
-          onClick={() => setSubTab('quizzes')}
-          className={`px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 cursor-pointer transition-colors ${
-            subTab === 'quizzes'
-              ? 'bg-indigo-600 text-white'
-              : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
-          }`}
-        >
-          <Award className="w-4 h-4" />
-          <span>Quiz Attempts & Misconceptions ({quizAttempts.length})</span>
-        </button>
+          <button
+            onClick={() => setSubTab('quizzes')}
+            className={`px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 cursor-pointer transition-colors ${
+              subTab === 'quizzes'
+                ? 'bg-indigo-600 text-white'
+                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+            }`}
+          >
+            <Award className="w-4 h-4" />
+            <span>Quiz Attempts & Misconceptions ({quizAttempts.length})</span>
+          </button>
 
-        <button
-          onClick={() => setSubTab('controls')}
-          className={`px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 cursor-pointer transition-colors ${
-            subTab === 'controls'
-              ? 'bg-indigo-600 text-white'
-              : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
-          }`}
-        >
-          <Settings className="w-4 h-4" />
-          <span>Student AI & Assessment Controls</span>
-        </button>
+          <button
+            onClick={() => setSubTab('controls')}
+            className={`px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 cursor-pointer transition-colors ${
+              subTab === 'controls'
+                ? 'bg-indigo-600 text-white'
+                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+            }`}
+          >
+            <Settings className="w-4 h-4" />
+            <span>Student AI & Assessment Controls</span>
+          </button>
 
+          <button
+            onClick={() => setSubTab('announcements')}
+            className={`px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 cursor-pointer transition-colors ${
+              subTab === 'announcements'
+                ? 'bg-indigo-600 text-white'
+                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+            }`}
+          >
+            <Bell className="w-4 h-4" />
+            <span>Announcements ({announcements.length})</span>
+          </button>
+        </div>
+
+        {/* Report Export Button */}
         <button
-          onClick={() => setSubTab('announcements')}
-          className={`px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 cursor-pointer transition-colors ${
-            subTab === 'announcements'
-              ? 'bg-indigo-600 text-white'
-              : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
-          }`}
+          onClick={handleExportAnalyticsReport}
+          className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 flex items-center gap-2 transition-colors cursor-pointer shadow-xs ml-auto"
+          title="Export CSV gradebook & analytics report"
         >
-          <Bell className="w-4 h-4" />
-          <span>Announcements ({announcements.length})</span>
+          <Download className="w-4 h-4" />
+          <span>Export Analytics Report (CSV)</span>
         </button>
       </div>
 

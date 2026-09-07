@@ -66,7 +66,7 @@ export const SourceDetailsModal: React.FC<SourceDetailsModalProps> = ({
                 <span className="text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
                   {source.type.toUpperCase()} SPECIFICATION
                 </span>
-                <Badge variant={source.status === 'ready' ? 'success' : source.status === 'error' ? 'danger' : 'neutral'}>
+                <Badge variant={source.status === 'ready' ? 'success' : source.status === 'error' ? 'warning' : 'neutral'}>
                   {source.status.toUpperCase()}
                 </Badge>
               </div>
