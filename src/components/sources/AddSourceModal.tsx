@@ -11,6 +11,7 @@ import {
   DuplicateCheckResult,
 } from '../../services/sourcePipeline';
 import { Button } from '../common/UIControls';
+import { DesktopService } from '../../services/desktop/desktopService';
 import {
   X,
   Upload,
@@ -321,6 +322,44 @@ export const AddSourceModal: React.FC<AddSourceModalProps> = ({
     }
   };
 
+  const handleBrowseFiles = async () => {
+    if (DesktopService.isElectron()) {
+      try {
+        const selected = await DesktopService.pickFiles({
+          title: 'Select Course Documents or Media',
+          filters: [
+            {
+              name: 'Supported Course Documents & Media',
+              extensions: ['pdf', 'docx', 'doc', 'pptx', 'ppt', 'txt', 'png', 'jpg', 'jpeg', 'webp'],
+            },
+            { name: 'All Files', extensions: ['*'] },
+          ],
+        });
+
+        if (selected && selected.length > 0) {
+          const item = selected[0];
+          if (item.base64) {
+            const byteCharacters = atob(item.base64);
+            const byteNumbers = new Array(byteCharacters.length);
+            for (let i = 0; i < byteCharacters.length; i++) {
+              byteNumbers[i] = byteCharacters.charCodeAt(i);
+            }
+            const byteArray = new Uint8Array(byteNumbers);
+            const file = new File([byteArray], item.name, {
+              type: item.extension === 'pdf' ? 'application/pdf' : 'application/octet-stream',
+              lastModified: item.lastModified,
+            });
+            await processFile(file);
+            return;
+          }
+        }
+      } catch (err) {
+        console.warn('Native picker error, falling back to standard input:', err);
+      }
+    }
+    fileInputRef.current?.click();
+  };
+
   const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       const file = e.target.files[0];
@@ -538,7 +577,7 @@ export const AddSourceModal: React.FC<AddSourceModalProps> = ({
                         ? 'border-indigo-500 bg-indigo-50/50 dark:bg-indigo-950/30 scale-99'
                         : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 bg-slate-50/50 dark:bg-slate-800/20'
                     }`}
-                    onClick={() => fileInputRef.current?.click()}
+                    onClick={handleBrowseFiles}
                   >
                     <input
                       type="file"

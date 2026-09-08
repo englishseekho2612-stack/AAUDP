@@ -28,7 +28,11 @@ import {
   Check,
   Download,
   Upload,
+  Folder,
+  FolderOpen,
+  Laptop,
 } from 'lucide-react';
+import { DesktopService } from '../services/desktop/desktopService';
 
 type SettingsTab =
   | 'general'
@@ -92,6 +96,35 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigate }) => {
   // SECURITY & LOGS
   const [logs, setLogs] = useState<SystemLogEntry[]>([]);
   const [copiedLogs, setCopiedLogs] = useState(false);
+
+  // DESKTOP ENVIRONMENT INFO
+  const [desktopInfo, setDesktopInfo] = useState<{
+    isElectron: boolean;
+    platform: string;
+    version: string;
+    arch?: string;
+  }>({
+    isElectron: DesktopService.isElectron(),
+    platform: DesktopService.isWindows() ? 'win32' : 'web',
+    version: '1.0.0',
+  });
+
+  useEffect(() => {
+    if (DesktopService.isElectron()) {
+      DesktopService.getAppInfo()
+        .then((info) => {
+          if (info) {
+            setDesktopInfo({
+              isElectron: true,
+              platform: info.platform,
+              version: info.version,
+              arch: info.arch,
+            });
+          }
+        })
+        .catch(() => {});
+    }
+  }, []);
 
   useEffect(() => {
     loadStorageStats();
@@ -549,6 +582,56 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigate }) => {
                   </button>
                 )}
               </div>
+
+              {/* Windows Desktop Local Application Folders */}
+              {desktopInfo.isElectron && (
+                <div className="pt-3 border-t border-slate-100 dark:border-slate-800 space-y-3">
+                  <div className="flex items-center gap-2 text-xs font-bold text-slate-800 dark:text-slate-200">
+                    <FolderOpen className="w-4 h-4 text-amber-500" />
+                    <span>Windows Local Application Data Folders</span>
+                  </div>
+                  <p className="text-[11px] text-slate-500">
+                    Direct access to local private directories managed by AI Teaching Studio on your Windows system.
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      onClick={() => DesktopService.openDataFolder('userData')}
+                      className="px-3 py-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-colors border border-slate-200 dark:border-slate-700"
+                    >
+                      <Folder className="w-3.5 h-3.5 text-indigo-500" />
+                      <span>App Data Root</span>
+                    </button>
+                    <button
+                      onClick={() => DesktopService.openDataFolder('projects')}
+                      className="px-3 py-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-colors border border-slate-200 dark:border-slate-700"
+                    >
+                      <Folder className="w-3.5 h-3.5 text-emerald-500" />
+                      <span>Projects</span>
+                    </button>
+                    <button
+                      onClick={() => DesktopService.openDataFolder('recordings')}
+                      className="px-3 py-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-colors border border-slate-200 dark:border-slate-700"
+                    >
+                      <Folder className="w-3.5 h-3.5 text-red-500" />
+                      <span>Recordings</span>
+                    </button>
+                    <button
+                      onClick={() => DesktopService.openDataFolder('exports')}
+                      className="px-3 py-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-colors border border-slate-200 dark:border-slate-700"
+                    >
+                      <Folder className="w-3.5 h-3.5 text-blue-500" />
+                      <span>Exports</span>
+                    </button>
+                    <button
+                      onClick={() => DesktopService.openDataFolder('backups')}
+                      className="px-3 py-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-colors border border-slate-200 dark:border-slate-700"
+                    >
+                      <Folder className="w-3.5 h-3.5 text-purple-500" />
+                      <span>Backups</span>
+                    </button>
+                  </div>
+                </div>
+              )}
             </section>
           </div>
         )}
@@ -657,6 +740,20 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigate }) => {
               </p>
 
               <div className="pt-3 border-t border-slate-100 dark:border-slate-800 space-y-2 text-xs text-slate-500">
+                <div className="flex justify-between">
+                  <span>Platform / Shell:</span>
+                  <span className="font-semibold text-slate-700 dark:text-slate-300">
+                    {desktopInfo.isElectron
+                      ? `Windows Desktop Application (${desktopInfo.arch || 'x64'})`
+                      : 'Web & Android Hybrid Client'}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Data Isolation:</span>
+                  <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                    Local Device Storage (Cloud Sync: NO)
+                  </span>
+                </div>
                 <div className="flex justify-between">
                   <span>Runtime Architecture:</span>
                   <span className="font-semibold text-slate-700 dark:text-slate-300">Vite 5 + React 18 + Express 4</span>

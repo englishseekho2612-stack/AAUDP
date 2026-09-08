@@ -30,6 +30,7 @@ import { FirstLaunchModal } from './components/common/FirstLaunchModal';
 import { CurriculumHubView } from './views/CurriculumHubView';
 import { StudentPortalView } from './views/StudentPortalView';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
+import { WindowsTitleBar } from './components/desktop/WindowsTitleBar';
 
 const StudioMainLayout: React.FC = () => {
   const { activeProject, projects, openProject, closeProject } = useProject();
@@ -111,28 +112,41 @@ const StudioMainLayout: React.FC = () => {
   // Dedicated full-screen Student Classroom View (Section 6 & 24)
   if (currentView === 'student_classroom') {
     return (
-      <ErrorBoundary fallbackTitle="Classroom View Error" onReset={() => setCurrentView('classroom_hub')}>
-        <StudentClassroomView
-          initialClassCode={studentClassCode}
-          onExit={() => setCurrentView('classroom_hub')}
-        />
-      </ErrorBoundary>
+      <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-slate-950">
+        <WindowsTitleBar />
+        <div className="flex-1 flex flex-col">
+          <ErrorBoundary fallbackTitle="Classroom View Error" onReset={() => setCurrentView('classroom_hub')}>
+            <StudentClassroomView
+              initialClassCode={studentClassCode}
+              onExit={() => setCurrentView('classroom_hub')}
+            />
+          </ErrorBoundary>
+        </div>
+      </div>
     );
   }
 
   // Dedicated full-screen AI Video Editor (Part 06)
   if (currentView === 'video_editor') {
     return (
-      <ErrorBoundary fallbackTitle="Video Editor Error" onReset={() => setCurrentView(activeProject ? 'project_dashboard' : 'projects')}>
-        <VideoEditorView
-          onExit={() => setCurrentView(activeProject ? 'project_dashboard' : 'projects')}
-        />
-      </ErrorBoundary>
+      <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-slate-950">
+        <WindowsTitleBar />
+        <div className="flex-1 flex flex-col">
+          <ErrorBoundary fallbackTitle="Video Editor Error" onReset={() => setCurrentView(activeProject ? 'project_dashboard' : 'projects')}>
+            <VideoEditorView
+              onExit={() => setCurrentView(activeProject ? 'project_dashboard' : 'projects')}
+            />
+          </ErrorBoundary>
+        </div>
+      </div>
     );
   }
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors">
+      {/* Desktop Native Window Title Bar (only in Electron) */}
+      <WindowsTitleBar />
+
       {/* Top Application Bar */}
       <AppBar
         currentView={currentView}
