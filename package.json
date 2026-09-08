@@ -12,7 +12,8 @@
     "lint": "tsc --noEmit",
     "cap:sync": "npx cap sync android",
     "cap:copy": "npx cap copy android",
-    "android:sync": "npm run build && npx cap sync android"
+    "android:prepare": "node scripts/prepare-android.js",
+    "android:sync": "npm run build && node scripts/prepare-android.js"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.1",

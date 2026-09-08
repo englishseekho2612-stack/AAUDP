@@ -9,6 +9,7 @@ workflows:
     scripts:
       - name: Install dependencies
         script: |
+          set -e
           if command -v nvm &> /dev/null; then
             nvm use 22 2>/dev/null || true
           fi
@@ -16,19 +17,23 @@ workflows:
           npm ci || npm install
       - name: Code Quality & Lint
         script: |
+          set -e
           npm run lint
       - name: Compile Web Bundle
         script: |
+          set -e
           npm run build
       - name: Capacitor Android Sync
         script: |
+          set -e
           if command -v nvm &> /dev/null; then
             nvm use 22 2>/dev/null || true
           fi
           node -v
-          npx cap sync android
+          node scripts/prepare-android.js
       - name: Build Android Debug APK
         script: |
+          set -e
           cd android
           chmod +x gradlew
           ./gradlew assembleDebug --stacktrace
@@ -47,6 +52,7 @@ workflows:
     scripts:
       - name: Install dependencies
         script: |
+          set -e
           if command -v nvm &> /dev/null; then
             nvm use 22 2>/dev/null || true
           fi
@@ -54,19 +60,23 @@ workflows:
           npm ci || npm install
       - name: Code Quality & Lint
         script: |
+          set -e
           npm run lint
       - name: Compile Web Bundle
         script: |
+          set -e
           npm run build
       - name: Capacitor Android Sync
         script: |
+          set -e
           if command -v nvm &> /dev/null; then
             nvm use 22 2>/dev/null || true
           fi
           node -v
-          npx cap sync android
+          node scripts/prepare-android.js
       - name: Build Android Release APK and AAB
         script: |
+          set -e
           cd android
           chmod +x gradlew
           ./gradlew assembleRelease bundleRelease --stacktrace
@@ -83,6 +93,7 @@ workflows:
     scripts:
       - name: Install dependencies
         script: |
+          set -e
           if command -v nvm &> /dev/null; then
             nvm use 22 2>/dev/null || true
           fi
@@ -90,9 +101,11 @@ workflows:
           npm ci || npm install
       - name: Code Quality & Lint
         script: |
+          set -e
           npm run lint
       - name: Build Web Production Assets
         script: |
+          set -e
           npm run build
     artifacts:
       - dist/**
