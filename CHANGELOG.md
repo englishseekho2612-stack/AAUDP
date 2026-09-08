@@ -6,6 +6,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.1.2] - 2026-09-08
+
+### Fixed
+- **JDK 21 Compatibility for Capacitor 8 & Android SDK 36**: Updated Java environment in `codemagic.yaml` from Java 17 to Java 21, resolving compilation failures caused by target compatibility requirement `JavaVersion.VERSION_21`.
+- **SDK 36 Licenses & Platform Availability**: Added automated `sdkmanager` verification step accepting Android SDK licenses and ensuring Android Platform 36 and Build-Tools 36 are installed before building.
+- **Gradle Heap Allocation**: Increased `org.gradle.jvmargs` in `android/gradle.properties` from 1536MB to 3072MB with parallel garbage collection to prevent memory exhaustion during Dex/D8 compilation on CI VMs.
+- **CI Build Output Readability**: Replaced verbose internal Gradle `--stacktrace` with clean `--console=plain` output so exact build diagnostics are directly readable in Codemagic logs.
+
+---
+
 ## [1.1.1] - 2026-09-08
 
 ### Fixed

@@ -5,7 +5,7 @@ workflows:
     instance_type: mac_mini_m1
     environment:
       node: 22
-      java: 17
+      java: 21
     scripts:
       - name: Install dependencies
         script: |
@@ -34,9 +34,17 @@ workflows:
       - name: Build Android Debug APK
         script: |
           set -e
+          if command -v /usr/libexec/java_home &> /dev/null; then
+            export JAVA_HOME=$(/usr/libexec/java_home -v 21 2>/dev/null || /usr/libexec/java_home 2>/dev/null || echo "$JAVA_HOME")
+          fi
+          java -version
+          if command -v sdkmanager &> /dev/null; then
+            yes | sdkmanager --licenses 2>/dev/null || true
+            sdkmanager "platforms;android-36" "build-tools;36.0.0" 2>/dev/null || true
+          fi
           cd android
           chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon --stacktrace
+          ./gradlew assembleDebug --no-daemon --console=plain
     artifacts:
       - android/app/build/outputs/apk/debug/*.apk
 
@@ -46,7 +54,7 @@ workflows:
     instance_type: mac_mini_m1
     environment:
       node: 22
-      java: 17
+      java: 21
       groups:
         - android_signing
     scripts:
@@ -77,9 +85,17 @@ workflows:
       - name: Build Android Release APK and AAB
         script: |
           set -e
+          if command -v /usr/libexec/java_home &> /dev/null; then
+            export JAVA_HOME=$(/usr/libexec/java_home -v 21 2>/dev/null || /usr/libexec/java_home 2>/dev/null || echo "$JAVA_HOME")
+          fi
+          java -version
+          if command -v sdkmanager &> /dev/null; then
+            yes | sdkmanager --licenses 2>/dev/null || true
+            sdkmanager "platforms;android-36" "build-tools;36.0.0" 2>/dev/null || true
+          fi
           cd android
           chmod +x gradlew
-          ./gradlew assembleRelease bundleRelease --no-daemon --stacktrace
+          ./gradlew assembleRelease bundleRelease --no-daemon --console=plain
     artifacts:
       - android/app/build/outputs/apk/release/*.apk
       - android/app/build/outputs/bundle/release/*.aab
