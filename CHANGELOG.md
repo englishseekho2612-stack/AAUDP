@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Native Android Documentation**: Added `docs/ANDROID_BUILD.md` and `docs/CODEMAGIC_ANDROID.md` detailing step-by-step local building and Codemagic CI/CD deployment.
 
 ### Changed
+- **Codemagic Node.js Version**: Updated runtime environment in `codemagic.yaml` from `node: 20` to `node: 22` to meet the Capacitor 8 CLI requirement (`NodeJS >= 22.0.0`).
 - **Codemagic Artifact Routing**: Removed generic `dist/**` globbing from Android workflows to expose standalone `.apk` and `.aab` binaries as individual, one-click downloads.
 - **Status Bar Theming**: Integrated native status bar styling with `#0f172a` slate dark theme on Android devices.
 

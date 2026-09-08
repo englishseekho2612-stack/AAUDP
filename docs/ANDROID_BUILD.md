@@ -22,7 +22,7 @@ The application runs inside a secure, hardware-accelerated Android WebView conta
 
 ## Prerequisites
 
-- **Node.js**: 20.x or 22.x
+- **Node.js**: 22.x LTS (required by Capacitor 8 CLI)
 - **JDK**: Java Development Kit 17 (recommended: OpenJDK 17)
 - **Android SDK**: Android 14 / 15 (compileSdk 36, targetSdk 36, minSdk 24)
 - **Android Studio** (optional, for local emulator and visual debugging)
