@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">AI Teaching Studio</string>
+    <string name="title_activity_main">AI Teaching Studio</string>
+    <string name="package_name">com.arpitacademy.teachingstudio</string>
+    <string name="custom_url_scheme">com.arpitacademy.teachingstudio</string>
+</resources>

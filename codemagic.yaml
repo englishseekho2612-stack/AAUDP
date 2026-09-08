@@ -1,7 +1,66 @@
 workflows:
+  android-debug:
+    name: Android Debug APK (Direct Testing)
+    max_build_duration: 30
+    instance_type: mac_mini_m1
+    environment:
+      node: 20
+      java: 17
+    scripts:
+      - name: Install dependencies
+        script: |
+          npm ci || npm install
+      - name: Code Quality & Lint
+        script: |
+          npm run lint
+      - name: Compile Web Bundle
+        script: |
+          npm run build
+      - name: Capacitor Android Sync
+        script: |
+          npx cap sync android
+      - name: Build Android Debug APK
+        script: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug --stacktrace
+    artifacts:
+      - android/app/build/outputs/apk/debug/*.apk
+
+  android-release:
+    name: Android Release Build (APK & AAB for Play Store)
+    max_build_duration: 45
+    instance_type: mac_mini_m1
+    environment:
+      node: 20
+      java: 17
+      groups:
+        - android_signing
+    scripts:
+      - name: Install dependencies
+        script: |
+          npm ci || npm install
+      - name: Code Quality & Lint
+        script: |
+          npm run lint
+      - name: Compile Web Bundle
+        script: |
+          npm run build
+      - name: Capacitor Android Sync
+        script: |
+          npx cap sync android
+      - name: Build Android Release APK and AAB
+        script: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleRelease bundleRelease --stacktrace
+    artifacts:
+      - android/app/build/outputs/apk/release/*.apk
+      - android/app/build/outputs/bundle/release/*.aab
+
   web-production:
     name: Web Production Build
-    max_build_duration: 30
+    max_build_duration: 20
     instance_type: mac_mini_m1
     environment:
       node: 20
@@ -17,39 +76,3 @@ workflows:
           npm run build
     artifacts:
       - dist/**
-
-  android-release:
-    name: Android Release Build
-    max_build_duration: 45
-    instance_type: mac_mini_m1
-    environment:
-      node: 20
-      java: 17
-    scripts:
-      - name: Install dependencies
-        script: |
-          npm ci || npm install
-      - name: Run Linting
-        script: |
-          npm run lint
-      - name: Compile Web Bundle
-        script: |
-          npm run build
-      - name: Capacitor Android Sync
-        script: |
-          if [ -d "android" ]; then
-            npx cap sync android
-          else
-            echo "Standard web distribution ready for Android WebView containerization"
-          fi
-      - name: Build Android Artifacts
-        script: |
-          if [ -d "android" ]; then
-            cd android && ./gradlew assembleRelease bundleRelease
-          else
-            echo "Skipping direct Gradle step: Android source directory not checked into repo root"
-          fi
-    artifacts:
-      - dist/**
-      - android/app/build/outputs/apk/**/*.apk
-      - android/app/build/outputs/bundle/**/*.aab

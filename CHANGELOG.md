@@ -6,6 +6,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.1.0] - 2026-09-08
+
+### Added
+- **Capacitor Native Android Platform**: Added `@capacitor/core`, `@capacitor/android`, `@capacitor/app`, and `@capacitor/status-bar` for hardware-accelerated Android WebView execution.
+- **Dedicated Android Source Project**: Created and linked `android/` native project with Gradle 8.14, compileSdk 36, and targetSdk 36.
+- **Hardware Back Button Handling**: Added native Android back button event listener to dismiss modals, pop nested views, and prevent accidental app closure.
+- **Direct Testing APK Workflow**: Added `android-debug` workflow in `codemagic.yaml` producing standalone `app-debug.apk` without requiring release signing.
+- **Google Play AAB Workflow**: Added `android-release` workflow producing `app-release.apk` and `app-release.aab` with Codemagic environment-based keystore signing.
+- **Native Android Documentation**: Added `docs/ANDROID_BUILD.md` and `docs/CODEMAGIC_ANDROID.md` detailing step-by-step local building and Codemagic CI/CD deployment.
+
+### Changed
+- **Codemagic Artifact Routing**: Removed generic `dist/**` globbing from Android workflows to expose standalone `.apk` and `.aab` binaries as individual, one-click downloads.
+- **Status Bar Theming**: Integrated native status bar styling with `#0f172a` slate dark theme on Android devices.
+
+---
+
 ## [1.0.0] - 2026-09-07
 
 ### Added

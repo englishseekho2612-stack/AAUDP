@@ -3,7 +3,10 @@
  * Production Foundation + Responsive App Shell + Local Project System
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { Capacitor } from '@capacitor/core';
+import { App as CapApp } from '@capacitor/app';
+import { StatusBar, Style } from '@capacitor/status-bar';
 import { ThemeProvider } from './context/ThemeContext';
 import { ProjectProvider, useProject } from './context/ProjectContext';
 import { AppView } from './types/navigation';
@@ -41,6 +44,41 @@ const StudioMainLayout: React.FC = () => {
       return false;
     }
   });
+
+  // Android Native Integration (Back button handling + Status Bar styling)
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+
+    try {
+      StatusBar.setStyle({ style: Style.Dark });
+      StatusBar.setBackgroundColor({ color: '#0f172a' });
+    } catch {
+      // Ignore if unsupported
+    }
+
+    const backListener = CapApp.addListener('backButton', () => {
+      if (showFirstLaunchModal) {
+        setShowFirstLaunchModal(false);
+        return;
+      }
+
+      if (currentView === 'project_dashboard') {
+        setCurrentView('projects');
+      } else if (currentView === 'student_classroom') {
+        setCurrentView('classroom_hub');
+      } else if (currentView === 'video_editor') {
+        setCurrentView('projects');
+      } else if (currentView !== 'home') {
+        setCurrentView('home');
+      } else {
+        CapApp.exitApp();
+      }
+    });
+
+    return () => {
+      backListener.then((l) => l.remove()).catch(() => {});
+    };
+  }, [currentView, showFirstLaunchModal]);
 
   const handleOpenProject = async (id: string) => {
     await openProject(id);

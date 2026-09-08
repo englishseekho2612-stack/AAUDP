@@ -102,25 +102,59 @@ arpit-academy/
 
 ---
 
-## 📱 Android Build Pipeline
+## 📱 Android & Mobile Build Pipeline
 
-This project is built with standard responsive design, touch-friendly navigation, and PWA compliance, ready for packaging into an Android APK or AAB via Capacitor or Android Studio WebView:
+The application features full native Android support powered by **Capacitor**:
 
-1. **Build Web Assets:**
+### Dual Target Architecture
+```
+React 19 Frontend  ──>  dist/ (Web Build)
+                             ├──>  Web Hosting / Container (Node / Static)
+                             └──>  Capacitor Android  ──>  Gradle  ──>  APK & AAB
+```
+
+### Building for Android Locally
+
+1. **Build Web Bundle & Sync Android:**
    ```bash
-   npm run build
+   npm run android:sync
    ```
-2. **Capacitor Synchronization (if configured):**
+   *(Runs `npm run build` followed by `npx cap sync android`)*
+
+2. **Compile Android Debug APK (Direct Testing):**
    ```bash
-   npx cap sync android
+   cd android
+   ./gradlew assembleDebug
    ```
-3. **Compile Release Artifacts:**
+   **Output**: `android/app/build/outputs/apk/debug/app-debug.apk`
+
+3. **Compile Release APK & AAB (Google Play Store):**
    ```bash
-   cd android && ./gradlew assembleRelease bundleRelease
+   cd android
+   ./gradlew assembleRelease bundleRelease
    ```
-   Artifacts are located in:
-   - APK: `android/app/build/outputs/apk/release/`
-   - AAB: `android/app/build/outputs/bundle/release/`
+   **Outputs**:
+   - APK: `android/app/build/outputs/apk/release/app-release-unsigned.apk` (or signed)
+   - AAB: `android/app/build/outputs/bundle/release/app-release.aab`
+
+---
+
+## ☁️ Codemagic CI/CD Workflows
+
+The repository root includes a dedicated `codemagic.yaml` with 3 separate workflows:
+
+1. **`android-debug`** *(Direct Testing)*:
+   - Compiles web assets, syncs Capacitor, and builds `app-debug.apk`.
+   - **Artifact**: `app-debug.apk` exposed individually for 1-click download on device (no ZIP extraction needed).
+2. **`android-release`** *(Google Play Distribution)*:
+   - Builds `app-release.apk` and `app-release.aab`.
+   - Supports secure signing via Codemagic environment group `android_signing`.
+3. **`web-production`** *(Web Assets)*:
+   - Compiles web distribution into `dist/**`.
+
+Detailed guides:
+- [Android Local Build Guide](docs/ANDROID_BUILD.md)
+- [Codemagic CI/CD Setup Guide](docs/CODEMAGIC_ANDROID.md)
 
 ---
 
