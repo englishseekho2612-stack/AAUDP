@@ -36,7 +36,7 @@ workflows:
           set -e
           cd android
           chmod +x gradlew
-          ./gradlew assembleDebug --stacktrace
+          ./gradlew assembleDebug --no-daemon --stacktrace
     artifacts:
       - android/app/build/outputs/apk/debug/*.apk
 
@@ -79,7 +79,7 @@ workflows:
           set -e
           cd android
           chmod +x gradlew
-          ./gradlew assembleRelease bundleRelease --stacktrace
+          ./gradlew assembleRelease bundleRelease --no-daemon --stacktrace
     artifacts:
       - android/app/build/outputs/apk/release/*.apk
       - android/app/build/outputs/bundle/release/*.aab

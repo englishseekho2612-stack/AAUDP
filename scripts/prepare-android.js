@@ -19,17 +19,25 @@ import { execSync } from 'node:child_process';
 const rootDir = process.cwd();
 const androidDir = path.join(rootDir, 'android');
 const gradlewPath = path.join(androidDir, 'gradlew');
+const wrapperJarPath = path.join(androidDir, 'gradle', 'wrapper', 'gradle-wrapper.jar');
 const manifestPath = path.join(androidDir, 'app', 'src', 'main', 'AndroidManifest.xml');
 const buildGradlePath = path.join(androidDir, 'app', 'build.gradle');
 
 console.log('--- Preparing Android Native Platform ---');
 
-// 1. Ensure android directory and gradlew exist
-if (!fs.existsSync(androidDir) || !fs.existsSync(gradlewPath)) {
-  console.log('[prepare-android] android directory or gradlew missing. Running "npx cap add android"...');
+// 1. Ensure complete and working native android platform
+const isPlatformIncomplete = !fs.existsSync(gradlewPath) || !fs.existsSync(wrapperJarPath);
+
+if (!fs.existsSync(androidDir)) {
+  console.log('[prepare-android] android directory missing. Scaffolding platform via "npx cap add android"...');
+  execSync('npx cap add android', { stdio: 'inherit' });
+} else if (isPlatformIncomplete) {
+  console.log('[prepare-android] android directory exists but gradlew or wrapper jar is missing.');
+  console.log('[prepare-android] Re-scaffolding android platform cleanly via Capacitor CLI...');
+  fs.rmSync(androidDir, { recursive: true, force: true });
   execSync('npx cap add android', { stdio: 'inherit' });
 } else {
-  console.log('[prepare-android] Native android directory and gradlew verified.');
+  console.log('[prepare-android] Native android directory and gradle wrapper verified.');
 }
 
 // 2. Ensure gradlew is executable
@@ -111,6 +119,12 @@ if (fs.existsSync(buildGradlePath)) {
 }
 
 // 5. Run Capacitor sync
+const distDir = path.join(rootDir, 'dist');
+if (!fs.existsSync(distDir) || !fs.existsSync(path.join(distDir, 'index.html'))) {
+  console.log('[prepare-android] dist/index.html not found. Building web bundle first...');
+  execSync('npm run build', { stdio: 'inherit' });
+}
+
 console.log('[prepare-android] Running "npx cap sync android"...');
 execSync('npx cap sync android', { stdio: 'inherit' });
 console.log('--- Android Native Platform Ready ---');

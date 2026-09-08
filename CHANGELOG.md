@@ -6,6 +6,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.1.1] - 2026-09-08
+
+### Fixed
+- **Codemagic Capacitor Platform Sync**: Resolved `[error] android platform already exists` during CI/CD execution when `android/` existed in the repository without native wrapper binaries.
+- **Automated Platform Re-Scaffolding**: Enhanced `scripts/prepare-android.js` to detect incomplete native folders, cleanly re-scaffolding the Capacitor native project via `fs.rmSync` and `npx cap add android` as instructed by Capacitor CLI.
+- **Gradle CI Daemon Optimization**: Added `--no-daemon` to Gradle execution steps in `codemagic.yaml` to ensure reliable builds and prevent background process memory exhaustion on CI virtual machines.
+- **Web Bundle Build Check**: Added automatic verification in `prepare-android.js` to ensure `dist/index.html` is compiled before synchronizing web assets to native Android storage.
+
+---
+
 ## [1.1.0] - 2026-09-08
 
 ### Added
