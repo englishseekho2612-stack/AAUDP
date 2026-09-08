@@ -131,6 +131,8 @@ export interface StudentQuizAttempt {
   durationSeconds: number;
   score: number;
   totalPossibleScore: number;
+  maxScore?: number;
+  aiAnalysis?: { summary?: string; strengths?: string[]; weaknesses?: string[] };
   percentage: number;
   answers: QuizAttemptAnswer[];
   status: 'in_progress' | 'submitted' | 'graded';
@@ -204,6 +206,8 @@ export interface CommonMisconception {
 
 export interface TeacherStudentControls {
   allowStudentAiHints: boolean;
+  allowAiHints?: boolean;
+  allowLateSubmissions?: boolean;
   aiHintMode: AiHintMode;
   allowAssignmentResubmission: boolean;
   maxQuizAttempts: number;

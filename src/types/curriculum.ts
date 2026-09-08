@@ -48,7 +48,7 @@ export type QuestionType =
   | 'conceptual'
   | 'exam_style';
 
-export type QuestionDifficulty = 'easy' | 'medium' | 'hard' | 'olympiad_exam';
+export type QuestionDifficulty = 'easy' | 'medium' | 'hard' | 'advanced' | 'olympiad_exam';
 
 export type AssessmentType = 'quiz' | 'unit_test' | 'chapter_test' | 'practice_test' | 'mock_test';
 
@@ -83,6 +83,7 @@ export interface RubricCriterion {
   title: string;
   description: string;
   maxMarks: number;
+  criteria?: string;
 }
 
 export interface Assignment {
@@ -147,6 +148,9 @@ export interface CurriculumLesson {
   
   // Link to existing TeachingProject (Part 1-8 engine)
   linkedProjectId?: string;
+  teachingProjectId?: string;
+  templateId?: string;
+  teacherNotes?: string;
   
   // Directly stored or referenced content modules
   sourceRefs: { id: string; name: string; type: string }[];

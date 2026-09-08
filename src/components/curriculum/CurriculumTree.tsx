@@ -510,9 +510,13 @@ export const CurriculumTree: React.FC<CurriculumTreeProps> = ({
                                       >
                                         <div className="flex items-center gap-2.5">
                                           {isReady ? (
-                                            <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" title="Ready to Teach" />
+                                            <span title="Ready to Teach">
+                                              <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                                            </span>
                                           ) : (
-                                            <AlertCircle className="w-4 h-4 text-amber-500 shrink-0" title="Preparation in Progress" />
+                                            <span title="Preparation in Progress">
+                                              <AlertCircle className="w-4 h-4 text-amber-500 shrink-0" />
+                                            </span>
                                           )}
                                           <div>
                                             <div className="text-xs font-medium text-slate-900 dark:text-slate-100 flex items-center gap-2">
