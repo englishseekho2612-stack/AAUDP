@@ -20,10 +20,14 @@ import {
   Layers,
   CheckCircle,
   Film,
+  Bot,
+  Network,
 } from 'lucide-react';
 
 // AI Viewers & Generation Modal
 import { CreateWithAIModal } from '../ai/CreateWithAIModal';
+import { AskArpitSirModal } from '../ai/AskArpitSirModal';
+import { VisualChoiceModal } from '../knowledge/VisualChoiceModal';
 import { MindMapViewer } from '../ai/MindMapViewer';
 import { PresentationViewer } from '../ai/PresentationViewer';
 import { PresentationDesignerPlanViewer } from '../ai/PresentationDesignerPlanViewer';
@@ -63,6 +67,8 @@ export const ProjectDashboard: React.FC<ProjectDashboardProps> = ({ onBack }) =>
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isRenameModalOpen, setIsRenameModalOpen] = useState(false);
   const [isCreateAIModalOpen, setIsCreateAIModalOpen] = useState(false);
+  const [isAskArpitSirOpen, setIsAskArpitSirOpen] = useState(false);
+  const [isVisualChoiceOpen, setIsVisualChoiceOpen] = useState(false);
   const [preselectedAITask, setPreselectedAITask] = useState<AIOutputType | undefined>(undefined);
   const [isTeachingStudioActive, setIsTeachingStudioActive] = useState(false);
   const [isVideoEditorActive, setIsVideoEditorActive] = useState(false);
@@ -212,10 +218,34 @@ export const ProjectDashboard: React.FC<ProjectDashboardProps> = ({ onBack }) =>
           className="inline-flex items-center gap-2 text-xs font-semibold text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200 transition-colors p-1 -ml-1 cursor-pointer min-h-[36px]"
         >
           <ArrowLeft className="w-4 h-4" />
-          <span>All Projects</span>
+          <span>All Lessons</span>
         </button>
 
         <div className="flex flex-wrap items-center gap-2">
+          {/* Ask Arpit Sir AI Tutor */}
+          <Button
+            id="btn-toolbar-ask-arpit-sir"
+            variant="outline"
+            size="sm"
+            onClick={() => setIsAskArpitSirOpen(true)}
+            icon={<Bot className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />}
+            className="border-emerald-500/40 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 font-semibold"
+          >
+            Ask Arpit Sir
+          </Button>
+
+          {/* Visual Format Selector */}
+          <Button
+            id="btn-toolbar-visual-format"
+            variant="outline"
+            size="sm"
+            onClick={() => setIsVisualChoiceOpen(true)}
+            icon={<Network className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />}
+            className="border-teal-500/40 text-teal-700 dark:text-teal-300 hover:bg-teal-50 dark:hover:bg-teal-950/30 font-semibold"
+          >
+            Visual Formats
+          </Button>
+
           {/* Primary Enter Teaching Studio Action */}
           <Button
             id="btn-toolbar-enter-studio"
@@ -223,9 +253,9 @@ export const ProjectDashboard: React.FC<ProjectDashboardProps> = ({ onBack }) =>
             size="sm"
             onClick={() => setIsTeachingStudioActive(true)}
             icon={<Video className="w-3.5 h-3.5 text-white" />}
-            className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold shadow-xs"
+            className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-xs"
           >
-            Enter Teaching Studio
+            Start Teaching Board
           </Button>
 
           {/* Primary AI Video Editor Action (Part 06) */}
@@ -504,6 +534,21 @@ export const ProjectDashboard: React.FC<ProjectDashboardProps> = ({ onBack }) =>
           </div>
         </div>
       )}
+      {/* Ask Arpit Sir Tutor Dialog */}
+      <AskArpitSirModal
+        isOpen={isAskArpitSirOpen}
+        onClose={() => setIsAskArpitSirOpen(false)}
+        onOpenTeachingBoard={() => setIsTeachingStudioActive(true)}
+      />
+
+      {/* Visual Choice Selector */}
+      <VisualChoiceModal
+        isOpen={isVisualChoiceOpen}
+        onClose={() => setIsVisualChoiceOpen(false)}
+        onSelectVisual={(_type) => {
+          handleTriggerOutput('mind_map');
+        }}
+      />
     </div>
   );
 };

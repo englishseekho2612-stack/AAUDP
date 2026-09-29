@@ -3,9 +3,14 @@ const path = require('path');
 const fs = require('fs');
 const http = require('http');
 const net = require('net');
+const os = require('os');
+
+// Set official Windows Application Name
+app.setName('Arpit Academy Udaipura');
 
 /**
- * AI Teaching Studio — Windows Desktop Main Process
+ * Arpit Academy Udaipura — Windows Desktop Main Process
+ * Developed by Arpit Digital Hub
  * Professional, secure Electron architecture
  */
 
@@ -171,7 +176,7 @@ async function createWindow() {
     minWidth: 1024,
     minHeight: 700,
     icon: fs.existsSync(iconPath) ? iconPath : undefined,
-    title: 'AI Teaching Studio',
+    title: 'Arpit Academy Udaipura',
     show: false,
     autoHideMenuBar: true,
     backgroundColor: '#0f172a',
@@ -457,8 +462,9 @@ function setupIPCHandlers() {
   // App version & system information
   ipcMain.handle('app:getInfo', () => {
     return {
-      name: 'AI Teaching Studio',
-      version: app.getVersion(),
+      name: 'Arpit Academy Udaipura',
+      publisher: 'Arpit Digital Hub',
+      version: app.getVersion() || '1.0.0',
       platform: process.platform,
       arch: process.arch,
       isPackaged: app.isPackaged,
@@ -466,6 +472,45 @@ function setupIPCHandlers() {
       electronVersion: process.versions.electron,
       nodeVersion: process.versions.node,
       serverPort: currentServerPort,
+    };
+  });
+
+  // Windows compatibility & capabilities detection (AQ.1, AQ.39, AQ.40)
+  ipcMain.handle('system:getWindowsCapabilities', () => {
+    const release = os.release();
+    let osName = 'Windows';
+    let isLegacyWindows = false; // Windows 7 / 8 / 8.1
+    let liveBroadcastSupported = true;
+
+    if (process.platform === 'win32') {
+      const parts = release.split('.').map(Number);
+      const major = parts[0] || 0;
+      const minor = parts[1] || 0;
+      const build = parts[2] || 0;
+
+      if (major === 6 && minor === 1) {
+        osName = 'Windows 7';
+        isLegacyWindows = true;
+      } else if (major === 6 && minor === 2) {
+        osName = 'Windows 8';
+        isLegacyWindows = true;
+      } else if (major === 6 && minor === 3) {
+        osName = 'Windows 8.1';
+        isLegacyWindows = true;
+      } else if (major === 10) {
+        osName = build >= 22000 ? 'Windows 11' : 'Windows 10';
+      }
+    }
+
+    return {
+      osName,
+      release,
+      isWindows: process.platform === 'win32',
+      isLegacyWindows,
+      liveBroadcastSupported,
+      storagePath: app.getPath('userData'),
+      appName: 'Arpit Academy Udaipura',
+      publisher: 'Arpit Digital Hub',
     };
   });
 }

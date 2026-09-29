@@ -69,6 +69,8 @@ export const YouTubeLiveModal: React.FC<YouTubeLiveModalProps> = ({
   // Part 07: Final Broadcast Check modal state (Section 6)
   const [showFinalBroadcastCheck, setShowFinalBroadcastCheck] = useState(false);
   const [isStartingBroadcast, setIsStartingBroadcast] = useState(false);
+  const [inlineNotice, setInlineNotice] = useState<string | null>(null);
+  const [showEndConfirm, setShowEndConfirm] = useState(false);
 
   const refreshStatus = async () => {
     setLoading(true);
@@ -103,13 +105,14 @@ export const YouTubeLiveModal: React.FC<YouTubeLiveModalProps> = ({
 
   const handleConnectOAuth = async () => {
     setConnecting(true);
+    setInlineNotice(null);
     try {
       if (status?.isConfigured) {
         const res = await youtubeService.connectAccount();
         if (res.success) {
           refreshStatus();
         } else if (res.error) {
-          alert(`YouTube Connection Notice: ${res.error}`);
+          setInlineNotice(`YouTube Notice: ${res.error}`);
         }
       } else {
         // Fast fallback for preview container without external Google secrets
@@ -131,15 +134,16 @@ export const YouTubeLiveModal: React.FC<YouTubeLiveModalProps> = ({
 
   const handleGoLive = () => {
     if (!status?.isConnected) {
-      alert('Please connect your YouTube account first.');
+      setInlineNotice('Please connect your YouTube channel before starting broadcast.');
       return;
     }
-    // Section 6: Enforce mandatory "FINAL BROADCAST CHECK" before streaming
+    setInlineNotice(null);
     setShowFinalBroadcastCheck(true);
   };
 
   const executeConfirmedGoLive = async () => {
     setIsStartingBroadcast(true);
+    setInlineNotice(null);
     try {
       const res = await youtubeService.createBroadcast(streamTitle, streamDescription, privacyStatus);
       if (res.success && res.broadcast) {
@@ -149,21 +153,25 @@ export const YouTubeLiveModal: React.FC<YouTubeLiveModalProps> = ({
         setShowFinalBroadcastCheck(false);
         setActiveTab('chat');
       } else {
-        alert(res.error || 'Failed to initialize YouTube broadcast.');
+        setInlineNotice(res.error || 'Failed to initialize YouTube broadcast. Please check stream parameters.');
       }
+    } catch (err: any) {
+      setInlineNotice(err?.message || 'Error communicating with YouTube Live API.');
     } finally {
       setIsStartingBroadcast(false);
     }
   };
 
-  const handleStopBroadcast = async () => {
-    const confirm = window.confirm('Are you sure you want to end this YouTube Live broadcast?');
-    if (confirm) {
-      await youtubeService.transitionBroadcast('ended');
-      setIsBroadcasting(false);
-      setBroadcastData(null);
-      refreshStatus();
-    }
+  const handleStopBroadcast = () => {
+    setShowEndConfirm(true);
+  };
+
+  const executeConfirmedStop = async () => {
+    setShowEndConfirm(false);
+    await youtubeService.transitionBroadcast('ended');
+    setIsBroadcasting(false);
+    setBroadcastData(null);
+    refreshStatus();
   };
 
   const handleSendChat = async (e: React.FormEvent) => {
@@ -257,6 +265,41 @@ export const YouTubeLiveModal: React.FC<YouTubeLiveModalProps> = ({
 
         {/* Main Body */}
         <div className="p-5 overflow-y-auto space-y-4 text-xs">
+          {inlineNotice && (
+            <div className="p-3.5 bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-900 rounded-xl text-rose-700 dark:text-rose-300 flex items-center justify-between">
+              <span className="font-medium">{inlineNotice}</span>
+              <button onClick={() => setInlineNotice(null)} className="text-slate-400 hover:text-slate-600">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+
+          {showEndConfirm && (
+            <div className="p-4 bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800 rounded-xl space-y-3">
+              <div className="flex items-center gap-2 text-amber-800 dark:text-amber-200 font-bold">
+                <AlertTriangle className="w-4 h-4 text-amber-600" />
+                <span>End YouTube Live Broadcast?</span>
+              </div>
+              <p className="text-xs text-amber-900 dark:text-amber-300">
+                Are you sure you want to conclude this live stream? The video session on YouTube will be transitioned to completed.
+              </p>
+              <div className="flex items-center justify-end gap-2">
+                <button
+                  onClick={() => setShowEndConfirm(false)}
+                  className="px-3 py-1.5 text-xs font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-900 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={executeConfirmedStop}
+                  className="px-4 py-1.5 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-lg text-xs cursor-pointer"
+                >
+                  Yes, End Broadcast
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* TAB 1: BROADCAST SETUP */}
           {activeTab === 'setup' && (
             <div className="space-y-4">

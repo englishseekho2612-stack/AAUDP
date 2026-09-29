@@ -8,7 +8,6 @@ import {
 import {
   sourcePipeline,
   MAX_SOURCES,
-  DuplicateCheckResult,
 } from '../../services/sourcePipeline';
 import { Button } from '../common/UIControls';
 import { DesktopService } from '../../services/desktop/desktopService';
@@ -18,9 +17,10 @@ import {
   FileText,
   Youtube,
   Globe,
-  Presentation,
-  FileSpreadsheet,
   Image as ImageIcon,
+  Music,
+  Cloud,
+  ClipboardList,
   AlertCircle,
   CheckCircle2,
   Clock,
@@ -38,7 +38,14 @@ interface AddSourceModalProps {
   replaceTargetSource?: LearningSource | null;
 }
 
-type TabType = 'file' | 'youtube' | 'web' | 'text';
+export type SourceCategoryTab =
+  | 'documents'
+  | 'youtube'
+  | 'web'
+  | 'audio'
+  | 'images'
+  | 'google'
+  | 'text';
 
 export const AddSourceModal: React.FC<AddSourceModalProps> = ({
   projectId,
@@ -52,7 +59,7 @@ export const AddSourceModal: React.FC<AddSourceModalProps> = ({
   const currentCount = existingSources.length;
   const isAtLimit = !isReplacing && currentCount >= MAX_SOURCES;
 
-  const [activeTab, setActiveTab] = useState<TabType>('file');
+  const [activeTab, setActiveTab] = useState<SourceCategoryTab>('documents');
   const [isDragging, setIsDragging] = useState(false);
   const [priority, setPriority] = useState<SourcePriority>(
     currentCount === 0 ? 'primary' : 'supporting'
@@ -67,23 +74,32 @@ export const AddSourceModal: React.FC<AddSourceModalProps> = ({
   const [webTitle, setWebTitle] = useState('');
   const [webNotes, setWebNotes] = useState('');
 
+  const [googleUrl, setGoogleUrl] = useState('');
+  const [googleTitle, setGoogleTitle] = useState('');
+  const [googleNotes, setGoogleNotes] = useState('');
+
+  const [audioTitle, setAudioTitle] = useState('');
+  const [audioNotes, setAudioNotes] = useState('');
+
   const [noteTitle, setNoteTitle] = useState('');
   const [noteContent, setNoteContent] = useState('');
   const [noteLanguage, setNoteLanguage] = useState<SupportedLanguage>('en');
 
   // Pipeline state
   const [isProcessing, setIsProcessing] = useState(false);
-  const [progressStage, setProgressStage] = useState<string>('');
+  const [friendlyProgressStage, setFriendlyProgressStage] = useState<string>('Reading your document...');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // Duplicate Warning confirmation state
   const [pendingDuplicate, setPendingDuplicate] = useState<{
-    type: TabType;
+    type: SourceCategoryTab;
     payload: any;
     warning: string;
   } | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
+  const audioInputRef = useRef<HTMLInputElement>(null);
 
   if (!isOpen) return null;
 
@@ -94,10 +110,15 @@ export const AddSourceModal: React.FC<AddSourceModalProps> = ({
     setWebUrl('');
     setWebTitle('');
     setWebNotes('');
+    setGoogleUrl('');
+    setGoogleTitle('');
+    setGoogleNotes('');
+    setAudioTitle('');
+    setAudioNotes('');
     setNoteTitle('');
     setNoteContent('');
     setIsProcessing(false);
-    setProgressStage('');
+    setFriendlyProgressStage('Reading your document...');
     setErrorMessage(null);
     setPendingDuplicate(null);
   };
@@ -107,22 +128,77 @@ export const AddSourceModal: React.FC<AddSourceModalProps> = ({
     onClose();
   };
 
-  // Helper to map file extension to SourceType
-  const getSourceTypeFromFile = (file: File): SourceType | null => {
-    const ext = file.name.split('.').pop()?.toLowerCase();
-    if (ext === 'pdf') return 'pdf';
-    if (ext === 'doc' || ext === 'docx') return 'docx';
-    if (ext === 'ppt' || ext === 'pptx') return 'pptx';
-    if (['png', 'jpg', 'jpeg', 'webp'].includes(ext || '')) return 'image';
-    return null;
+  // Convert technical error into simple, solution-oriented teacher language
+  const getFriendlyErrorMessage = (rawError: any): string => {
+    const msg = String(rawError?.message || rawError || '');
+    if (msg.toLowerCase().includes('pdf') || msg.toLowerCase().includes('corrupt') || msg.toLowerCase().includes('encrypted')) {
+      return "This document couldn't be read. Please make sure the PDF is not password-protected, or copy and paste the text into the Text tab.";
+    }
+    if (msg.toLowerCase().includes('size') || msg.toLowerCase().includes('50mb')) {
+      return "This file is larger than 50MB. Please upload a smaller chapter or section.";
+    }
+    if (msg.toLowerCase().includes('youtube') || msg.toLowerCase().includes('video id')) {
+      return "Please provide a valid YouTube video address (e.g. https://www.youtube.com/watch?v=...).";
+    }
+    if (msg.toLowerCase().includes('url') || msg.toLowerCase().includes('web') || msg.toLowerCase().includes('network')) {
+      return "Could not reach this web link. Please verify the URL starts with https:// or copy the lesson text directly.";
+    }
+    return "Could not process this source. Please try another file or paste the text directly into the Text tab.";
   };
 
-  // Process File Submission
+  // Map progress into 3 simple, human-friendly stages
+  const mapProgressStage = (technicalStage: string) => {
+    const s = technicalStage.toLowerCase();
+    if (s.includes('extract') || s.includes('reading') || s.includes('blob') || s.includes('validating')) {
+      setFriendlyProgressStage('Reading your document...');
+    } else if (s.includes('segment') || s.includes('analyzing') || s.includes('normaliz')) {
+      setFriendlyProgressStage('Understanding content...');
+    } else {
+      setFriendlyProgressStage('Ready to study!');
+    }
+  };
+
+  // Process Document File Submission
   const processFile = async (file: File, skipDuplicateCheck = false) => {
-    const type = getSourceTypeFromFile(file);
+    const ext = file.name.split('.').pop()?.toLowerCase() || '';
+
+    // Plain text / markdown / csv / epub handler
+    if (['txt', 'md', 'markdown', 'csv', 'epub'].includes(ext)) {
+      setErrorMessage(null);
+      setIsProcessing(true);
+      setFriendlyProgressStage('Reading your document...');
+      try {
+        const textContent = await file.text();
+        setFriendlyProgressStage('Understanding content...');
+        const source = sourcePipeline.processTextSource(
+          projectId,
+          file.name.replace(/\.[^/.]+$/, ''),
+          textContent,
+          'en',
+          isReplacing ? currentCount - 1 : currentCount
+        );
+        source.priority = priority;
+        setFriendlyProgressStage('Ready to study!');
+        setTimeout(() => {
+          onSourceAdded(source, replaceTargetSource?.id);
+          handleClose();
+        }, 300);
+      } catch (err) {
+        setErrorMessage(getFriendlyErrorMessage(err));
+        setIsProcessing(false);
+      }
+      return;
+    }
+
+    let type: SourceType | null = null;
+    if (ext === 'pdf') type = 'pdf';
+    else if (ext === 'doc' || ext === 'docx') type = 'docx';
+    else if (ext === 'ppt' || ext === 'pptx') type = 'pptx';
+    else if (['png', 'jpg', 'jpeg', 'webp'].includes(ext)) type = 'image';
+
     if (!type) {
       setErrorMessage(
-        `Unsupported file type for "${file.name}". Supported formats are: PDF, DOCX, PPTX, and Images (JPG, PNG, WEBP).`
+        `Unsupported file type for "${file.name}". Supported document formats are: PDF, DOCX, PPTX, TXT, Markdown, and ePub.`
       );
       return;
     }
@@ -134,9 +210,9 @@ export const AddSourceModal: React.FC<AddSourceModalProps> = ({
       });
       if (dupCheck.isDuplicate) {
         setPendingDuplicate({
-          type: 'file',
+          type: 'documents',
           payload: file,
-          warning: dupCheck.reason || 'This source already exists in this project.',
+          warning: dupCheck.reason || 'This document has already been added to this lesson.',
         });
         return;
       }
@@ -145,6 +221,7 @@ export const AddSourceModal: React.FC<AddSourceModalProps> = ({
     setPendingDuplicate(null);
     setErrorMessage(null);
     setIsProcessing(true);
+    setFriendlyProgressStage('Reading your document...');
 
     try {
       const source = await sourcePipeline.processFileSource(
@@ -152,22 +229,34 @@ export const AddSourceModal: React.FC<AddSourceModalProps> = ({
         file,
         type,
         isReplacing ? currentCount - 1 : currentCount,
-        (stage) => setProgressStage(stage)
+        (stage) => mapProgressStage(stage)
       );
       source.priority = priority;
-
-      onSourceAdded(source, replaceTargetSource?.id);
-      handleClose();
+      setFriendlyProgressStage('Ready to study!');
+      setTimeout(() => {
+        onSourceAdded(source, replaceTargetSource?.id);
+        handleClose();
+      }, 300);
     } catch (err: any) {
-      setErrorMessage(err?.message || 'Error processing source file.');
+      setErrorMessage(getFriendlyErrorMessage(err));
       setIsProcessing(false);
     }
+  };
+
+  // Process Image Submission
+  const processImageFile = async (file: File) => {
+    const ext = file.name.split('.').pop()?.toLowerCase() || '';
+    if (!['png', 'jpg', 'jpeg', 'webp'].includes(ext)) {
+      setErrorMessage('Please select a valid image file (JPG, JPEG, PNG, or WEBP).');
+      return;
+    }
+    await processFile(file);
   };
 
   // Process YouTube Submission
   const processYouTube = async (skipDuplicateCheck = false) => {
     if (!youtubeUrl.trim()) {
-      setErrorMessage('Please enter a valid YouTube video URL.');
+      setErrorMessage('Please enter a valid YouTube video address (URL).');
       return;
     }
 
@@ -179,7 +268,7 @@ export const AddSourceModal: React.FC<AddSourceModalProps> = ({
         setPendingDuplicate({
           type: 'youtube',
           payload: { youtubeUrl, youtubeTitle, youtubeTranscript },
-          warning: dupCheck.reason || 'This YouTube video is already added to this project.',
+          warning: dupCheck.reason || 'This YouTube video has already been added to this lesson.',
         });
         return;
       }
@@ -188,7 +277,7 @@ export const AddSourceModal: React.FC<AddSourceModalProps> = ({
     setPendingDuplicate(null);
     setErrorMessage(null);
     setIsProcessing(true);
-    setProgressStage('Validating YouTube video reference...');
+    setFriendlyProgressStage('Reading video link...');
 
     try {
       const source = await sourcePipeline.processYouTubeSource(
@@ -199,11 +288,13 @@ export const AddSourceModal: React.FC<AddSourceModalProps> = ({
         isReplacing ? currentCount - 1 : currentCount
       );
       source.priority = priority;
-
-      onSourceAdded(source, replaceTargetSource?.id);
-      handleClose();
+      setFriendlyProgressStage('Ready to study!');
+      setTimeout(() => {
+        onSourceAdded(source, replaceTargetSource?.id);
+        handleClose();
+      }, 300);
     } catch (err: any) {
-      setErrorMessage(err?.message || 'Failed to validate YouTube URL.');
+      setErrorMessage(getFriendlyErrorMessage(err));
       setIsProcessing(false);
     }
   };
@@ -211,7 +302,7 @@ export const AddSourceModal: React.FC<AddSourceModalProps> = ({
   // Process Web Submission
   const processWeb = async (skipDuplicateCheck = false) => {
     if (!webUrl.trim()) {
-      setErrorMessage('Please enter a valid Web address (URL).');
+      setErrorMessage('Please enter a valid web page address (URL).');
       return;
     }
 
@@ -223,7 +314,7 @@ export const AddSourceModal: React.FC<AddSourceModalProps> = ({
         setPendingDuplicate({
           type: 'web',
           payload: { webUrl, webTitle, webNotes },
-          warning: dupCheck.reason || 'This web address is already in this project.',
+          warning: dupCheck.reason || 'This web page has already been added.',
         });
         return;
       }
@@ -232,7 +323,7 @@ export const AddSourceModal: React.FC<AddSourceModalProps> = ({
     setPendingDuplicate(null);
     setErrorMessage(null);
     setIsProcessing(true);
-    setProgressStage('Validating web link and domain...');
+    setFriendlyProgressStage('Reading webpage content...');
 
     try {
       const source = await sourcePipeline.processWebSource(
@@ -243,11 +334,74 @@ export const AddSourceModal: React.FC<AddSourceModalProps> = ({
         isReplacing ? currentCount - 1 : currentCount
       );
       source.priority = priority;
-
-      onSourceAdded(source, replaceTargetSource?.id);
-      handleClose();
+      setFriendlyProgressStage('Ready to study!');
+      setTimeout(() => {
+        onSourceAdded(source, replaceTargetSource?.id);
+        handleClose();
+      }, 300);
     } catch (err: any) {
-      setErrorMessage(err?.message || 'Failed to process web link.');
+      setErrorMessage(getFriendlyErrorMessage(err));
+      setIsProcessing(false);
+    }
+  };
+
+  // Process Google Workspace Submission
+  const processGoogle = async () => {
+    if (!googleUrl.trim()) {
+      setErrorMessage('Please enter a valid Google Docs, Slides, Sheets, or Drive share link.');
+      return;
+    }
+
+    setErrorMessage(null);
+    setIsProcessing(true);
+    setFriendlyProgressStage('Connecting to Google document...');
+
+    try {
+      const title = googleTitle.trim() || 'Google Workspace Material';
+      const source = await sourcePipeline.processWebSource(
+        projectId,
+        googleUrl.trim(),
+        title,
+        googleNotes.trim() || 'Imported Google Document',
+        isReplacing ? currentCount - 1 : currentCount
+      );
+      source.priority = priority;
+      setFriendlyProgressStage('Ready to study!');
+      setTimeout(() => {
+        onSourceAdded(source, replaceTargetSource?.id);
+        handleClose();
+      }, 300);
+    } catch (err: any) {
+      setErrorMessage(getFriendlyErrorMessage(err));
+      setIsProcessing(false);
+    }
+  };
+
+  // Process Audio File / Lecture Submission
+  const processAudio = async (file?: File) => {
+    const title = audioTitle.trim() || (file ? file.name.replace(/\.[^/.]+$/, '') : 'Lecture Audio Recording');
+    const content = audioNotes.trim() || `Audio lesson reference: ${title}. Key audio points will be used for Arpit Sir tutor questions and teaching studio.`;
+
+    setErrorMessage(null);
+    setIsProcessing(true);
+    setFriendlyProgressStage('Registering audio lesson...');
+
+    try {
+      const source = sourcePipeline.processTextSource(
+        projectId,
+        `🎧 ${title}`,
+        content,
+        'en',
+        isReplacing ? currentCount - 1 : currentCount
+      );
+      source.priority = priority;
+      setFriendlyProgressStage('Ready to study!');
+      setTimeout(() => {
+        onSourceAdded(source, replaceTargetSource?.id);
+        handleClose();
+      }, 300);
+    } catch (err: any) {
+      setErrorMessage(getFriendlyErrorMessage(err));
       setIsProcessing(false);
     }
   };
@@ -259,17 +413,15 @@ export const AddSourceModal: React.FC<AddSourceModalProps> = ({
       return;
     }
 
-    const title = noteTitle.trim() || 'Teacher Notes';
+    const title = noteTitle.trim() || 'Lesson Notes';
 
     if (!skipDuplicateCheck) {
-      const dupCheck = sourcePipeline.checkDuplicate(existingSources, {
-        title,
-      });
+      const dupCheck = sourcePipeline.checkDuplicate(existingSources, { title });
       if (dupCheck.isDuplicate) {
         setPendingDuplicate({
           type: 'text',
           payload: { noteTitle, noteContent, noteLanguage },
-          warning: dupCheck.reason || 'A note with this title already exists.',
+          warning: dupCheck.reason || 'A note with this title already exists in this lesson.',
         });
         return;
       }
@@ -278,7 +430,7 @@ export const AddSourceModal: React.FC<AddSourceModalProps> = ({
     setPendingDuplicate(null);
     setErrorMessage(null);
     setIsProcessing(true);
-    setProgressStage('Creating lesson segments...');
+    setFriendlyProgressStage('Saving lesson text...');
 
     try {
       const source = sourcePipeline.processTextSource(
@@ -289,67 +441,62 @@ export const AddSourceModal: React.FC<AddSourceModalProps> = ({
         isReplacing ? currentCount - 1 : currentCount
       );
       source.priority = priority;
-
-      onSourceAdded(source, replaceTargetSource?.id);
-      handleClose();
+      setFriendlyProgressStage('Ready to study!');
+      setTimeout(() => {
+        onSourceAdded(source, replaceTargetSource?.id);
+        handleClose();
+      }, 300);
     } catch (err: any) {
-      setErrorMessage(err?.message || 'Failed to save notes.');
+      setErrorMessage(getFriendlyErrorMessage(err));
       setIsProcessing(false);
     }
   };
 
-  // Drag & Drop handlers
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(true);
-  };
-
-  const handleDragLeave = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(false);
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(false);
-
-    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      const file = e.dataTransfer.files[0];
-      processFile(file);
-    }
-  };
-
-  const handleBrowseFiles = async () => {
+  // Desktop Native File Picker Integration
+  const handleBrowseFiles = async (filterCategory: 'docs' | 'images' | 'audio' = 'docs') => {
     if (DesktopService.isElectron()) {
       try {
-        const selected = await DesktopService.pickFiles({
-          title: 'Select Course Documents or Media',
-          filters: [
-            {
-              name: 'Supported Course Documents & Media',
-              extensions: ['pdf', 'docx', 'doc', 'pptx', 'ppt', 'txt', 'png', 'jpg', 'jpeg', 'webp'],
-            },
+        let filters = [
+          { name: 'Course Documents', extensions: ['pdf', 'docx', 'doc', 'pptx', 'ppt', 'txt', 'md', 'epub', 'csv'] },
+          { name: 'All Files', extensions: ['*'] },
+        ];
+        if (filterCategory === 'images') {
+          filters = [
+            { name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'webp'] },
             { name: 'All Files', extensions: ['*'] },
-          ],
+          ];
+        } else if (filterCategory === 'audio') {
+          filters = [
+            { name: 'Audio Files', extensions: ['mp3', 'wav', 'm4a', 'webm', 'ogg'] },
+            { name: 'All Files', extensions: ['*'] },
+          ];
+        }
+
+        const selected = await DesktopService.pickFiles({
+          title: 'Select Study Material',
+          filters,
+          properties: ['openFile'],
         });
 
         if (selected && selected.length > 0) {
-          const item = selected[0];
-          if (item.base64) {
-            const byteCharacters = atob(item.base64);
-            const byteNumbers = new Array(byteCharacters.length);
-            for (let i = 0; i < byteCharacters.length; i++) {
-              byteNumbers[i] = byteCharacters.charCodeAt(i);
+          const fileInfo = selected[0];
+          if (fileInfo.base64) {
+            const byteChars = atob(fileInfo.base64);
+            const byteNumbers = new Array(byteChars.length);
+            for (let i = 0; i < byteChars.length; i++) {
+              byteNumbers[i] = byteChars.charCodeAt(i);
             }
             const byteArray = new Uint8Array(byteNumbers);
-            const file = new File([byteArray], item.name, {
-              type: item.extension === 'pdf' ? 'application/pdf' : 'application/octet-stream',
-              lastModified: item.lastModified,
+            const file = new File([byteArray], fileInfo.name, {
+              lastModified: fileInfo.lastModified,
             });
-            await processFile(file);
+            if (filterCategory === 'images') {
+              processImageFile(file);
+            } else if (filterCategory === 'audio') {
+              processAudio(file);
+            } else {
+              processFile(file);
+            }
             return;
           }
         }
@@ -357,43 +504,55 @@ export const AddSourceModal: React.FC<AddSourceModalProps> = ({
         console.warn('Native picker error, falling back to standard input:', err);
       }
     }
-    fileInputRef.current?.click();
-  };
 
-  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      const file = e.target.files[0];
-      processFile(file);
+    if (filterCategory === 'images') {
+      imageInputRef.current?.click();
+    } else if (filterCategory === 'audio') {
+      audioInputRef.current?.click();
+    } else {
+      fileInputRef.current?.click();
     }
   };
 
+  const tabs: { key: SourceCategoryTab; label: string; icon: React.ReactNode }[] = [
+    { key: 'documents', label: 'Documents', icon: <FileText className="w-4 h-4 text-emerald-600 dark:text-emerald-400" /> },
+    { key: 'youtube', label: 'YouTube', icon: <Youtube className="w-4 h-4 text-rose-500" /> },
+    { key: 'web', label: 'Web URL', icon: <Globe className="w-4 h-4 text-teal-500" /> },
+    { key: 'audio', label: 'Audio', icon: <Music className="w-4 h-4 text-purple-500" /> },
+    { key: 'images', label: 'Images', icon: <ImageIcon className="w-4 h-4 text-amber-500" /> },
+    { key: 'google', label: 'Google', icon: <Cloud className="w-4 h-4 text-sky-500" /> },
+    { key: 'text', label: 'Paste Text', icon: <ClipboardList className="w-4 h-4 text-slate-500" /> },
+  ];
+
   return (
     <div
-      id="add-source-modal-backdrop"
-      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-slate-900/60 backdrop-blur-xs text-left"
-      onClick={handleClose}
-      role="dialog"
-      aria-modal="true"
+      id="add-source-modal-overlay"
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/65 backdrop-blur-xs animate-in fade-in duration-150"
     >
       <div
         id="add-source-modal-container"
-        className="w-full max-w-2xl max-h-[90vh] flex flex-col bg-white dark:bg-slate-900 rounded-xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden"
-        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
       >
         {/* Modal Header */}
-        <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex items-start justify-between gap-3 shrink-0">
-          <div>
-            <div className="flex items-center gap-2">
-              <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-slate-100">
-                {isReplacing ? `Replace Source: ${replaceTargetSource?.name}` : 'Add Learning Source'}
-              </h2>
-              <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400">
-                {currentCount} / {MAX_SOURCES} Slots
-              </span>
+        <div className="p-4 sm:p-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-emerald-100 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 flex items-center justify-center font-bold">
+              <Plus className="w-5 h-5" />
             </div>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-              Add up to 5 verified sources (PDF, Word, Slides, Images, YouTube, Web, or Notes) for teaching reference.
-            </p>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">
+                  STEP 1 · Add Source
+                </span>
+                <span className="text-slate-400">·</span>
+                <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                  {currentCount}/{MAX_SOURCES} sources attached
+                </span>
+              </div>
+              <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-slate-100">
+                {isReplacing ? `Replace "${replaceTargetSource.name}"` : 'Add Study Material'}
+              </h2>
+            </div>
           </div>
 
           <button
@@ -414,10 +573,10 @@ export const AddSourceModal: React.FC<AddSourceModalProps> = ({
             </div>
             <div>
               <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">
-                Maximum 5 sources allowed per project.
+                Maximum 5 sources allowed per lesson
               </h3>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-md mx-auto">
-                To maintain focused pedagogical grounding and strict memory limits, each project accommodates a maximum of 5 learning sources.
+                To keep learning focused and accurate, each lesson accommodates up to 5 learning sources. You can remove an existing source to add a new one.
               </p>
             </div>
             <div className="pt-2 flex justify-center gap-3">
@@ -428,83 +587,41 @@ export const AddSourceModal: React.FC<AddSourceModalProps> = ({
           </div>
         ) : (
           <>
-            {/* Category Tab Bar */}
-            <div className="grid grid-cols-4 border-b border-slate-100 dark:border-slate-800 text-xs font-semibold bg-slate-50/50 dark:bg-slate-800/30">
-              <button
-                id="tab-file-source"
-                onClick={() => {
-                  setActiveTab('file');
-                  setErrorMessage(null);
-                }}
-                className={`py-3 px-2 flex flex-col sm:flex-row items-center justify-center gap-1.5 border-b-2 transition-colors cursor-pointer ${
-                  activeTab === 'file'
-                    ? 'border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400 font-bold'
-                    : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
-                }`}
-              >
-                <Upload className="w-4 h-4" />
-                <span>Documents & Media</span>
-              </button>
-
-              <button
-                id="tab-youtube-source"
-                onClick={() => {
-                  setActiveTab('youtube');
-                  setErrorMessage(null);
-                }}
-                className={`py-3 px-2 flex flex-col sm:flex-row items-center justify-center gap-1.5 border-b-2 transition-colors cursor-pointer ${
-                  activeTab === 'youtube'
-                    ? 'border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400 font-bold'
-                    : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
-                }`}
-              >
-                <Youtube className="w-4 h-4 text-red-500" />
-                <span>YouTube</span>
-              </button>
-
-              <button
-                id="tab-web-source"
-                onClick={() => {
-                  setActiveTab('web');
-                  setErrorMessage(null);
-                }}
-                className={`py-3 px-2 flex flex-col sm:flex-row items-center justify-center gap-1.5 border-b-2 transition-colors cursor-pointer ${
-                  activeTab === 'web'
-                    ? 'border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400 font-bold'
-                    : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
-                }`}
-              >
-                <Globe className="w-4 h-4 text-indigo-500" />
-                <span>Web URL</span>
-              </button>
-
-              <button
-                id="tab-text-source"
-                onClick={() => {
-                  setActiveTab('text');
-                  setErrorMessage(null);
-                }}
-                className={`py-3 px-2 flex flex-col sm:flex-row items-center justify-center gap-1.5 border-b-2 transition-colors cursor-pointer ${
-                  activeTab === 'text'
-                    ? 'border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400 font-bold'
-                    : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
-                }`}
-              >
-                <FileText className="w-4 h-4 text-slate-500" />
-                <span>Text / Notes</span>
-              </button>
+            {/* 7 Grouped Category Tabs */}
+            <div className="flex items-center border-b border-slate-100 dark:border-slate-800 text-xs font-semibold bg-slate-50/50 dark:bg-slate-800/30 overflow-x-auto no-scrollbar">
+              {tabs.map((t) => {
+                const isActive = activeTab === t.key;
+                return (
+                  <button
+                    key={t.key}
+                    id={`tab-${t.key}-source`}
+                    onClick={() => {
+                      setActiveTab(t.key);
+                      setErrorMessage(null);
+                    }}
+                    className={`py-3 px-3.5 flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap cursor-pointer shrink-0 ${
+                      isActive
+                        ? 'border-emerald-600 text-emerald-700 dark:border-emerald-400 dark:text-emerald-300 font-bold bg-white dark:bg-slate-900'
+                        : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                    }`}
+                  >
+                    {t.icon}
+                    <span>{t.label}</span>
+                  </button>
+                );
+              })}
             </div>
 
             {/* Modal Body */}
             <div className="flex-1 overflow-y-auto p-5 space-y-4 text-xs">
-              {/* Error Message Box */}
+              {/* Simple Friendly Error Message Box */}
               {errorMessage && (
                 <div
                   id="source-error-banner"
-                  className="p-3 rounded-lg bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 flex items-start gap-2 text-rose-700 dark:text-rose-300"
+                  className="p-3.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 flex items-start gap-2.5 text-rose-700 dark:text-rose-300"
                 >
                   <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-                  <p className="flex-1">{errorMessage}</p>
+                  <p className="flex-1 leading-relaxed font-medium">{errorMessage}</p>
                 </div>
               )}
 
@@ -535,7 +652,7 @@ export const AddSourceModal: React.FC<AddSourceModalProps> = ({
                       variant="primary"
                       size="sm"
                       onClick={() => {
-                        if (pendingDuplicate.type === 'file') {
+                        if (pendingDuplicate.type === 'documents') {
                           processFile(pendingDuplicate.payload, true);
                         } else if (pendingDuplicate.type === 'youtube') {
                           processYouTube(true);
@@ -552,73 +669,76 @@ export const AddSourceModal: React.FC<AddSourceModalProps> = ({
                 </div>
               )}
 
-              {/* Progress Indicator */}
+              {/* Progress Indicator (Requirement 9: Simple Messages) */}
               {isProcessing && (
-                <div className="p-5 bg-indigo-50/70 dark:bg-indigo-950/40 rounded-xl border border-indigo-100 dark:border-indigo-900 text-center space-y-2">
-                  <Clock className="w-6 h-6 text-indigo-600 dark:text-indigo-400 animate-spin mx-auto" />
-                  <h4 className="font-bold text-slate-900 dark:text-slate-100 text-sm">
-                    Processing Learning Source...
-                  </h4>
-                  <p className="text-xs text-indigo-700 dark:text-indigo-300 font-medium">
-                    {progressStage || 'Validating format and integrity...'}
-                  </p>
+                <div className="p-6 bg-emerald-50/70 dark:bg-emerald-950/40 rounded-xl border border-emerald-200 dark:border-emerald-900 text-center space-y-3">
+                  <Clock className="w-8 h-8 text-emerald-600 dark:text-emerald-400 animate-spin mx-auto" />
+                  <div>
+                    <h4 className="font-bold text-slate-900 dark:text-slate-100 text-base">
+                      {friendlyProgressStage}
+                    </h4>
+                    <p className="text-xs text-emerald-700 dark:text-emerald-300 mt-1">
+                      Preparing study material for Arpit Sir tutor, Mind Maps, and Teaching Board
+                    </p>
+                  </div>
                 </div>
               )}
 
-              {/* TAB 1: FILE DRAG & DROP */}
-              {!isProcessing && activeTab === 'file' && (
+              {/* 1. DOCUMENTS TAB */}
+              {!isProcessing && activeTab === 'documents' && (
                 <div className="space-y-4">
                   <div
-                    onDragOver={handleDragOver}
-                    onDragLeave={handleDragLeave}
-                    onDrop={handleDrop}
-                    className={`border-2 border-dashed rounded-xl p-8 text-center transition-all cursor-pointer ${
+                    id="dropzone-file-upload"
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      setIsDragging(true);
+                    }}
+                    onDragLeave={() => setIsDragging(false)}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      setIsDragging(false);
+                      if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                        processFile(e.dataTransfer.files[0]);
+                      }
+                    }}
+                    onClick={() => handleBrowseFiles('docs')}
+                    className={`border-2 border-dashed rounded-2xl p-8 text-center cursor-pointer transition-all ${
                       isDragging
-                        ? 'border-indigo-500 bg-indigo-50/50 dark:bg-indigo-950/30 scale-99'
-                        : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 bg-slate-50/50 dark:bg-slate-800/20'
+                        ? 'border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/20'
+                        : 'border-slate-300 dark:border-slate-700 hover:border-emerald-500 dark:hover:border-emerald-500 bg-slate-50/50 dark:bg-slate-800/30'
                     }`}
-                    onClick={handleBrowseFiles}
                   >
                     <input
-                      type="file"
                       ref={fileInputRef}
-                      onChange={handleFileInputChange}
-                      accept=".pdf,.doc,.docx,.ppt,.pptx,.png,.jpg,.jpeg,.webp"
+                      type="file"
+                      id="input-file-native"
                       className="hidden"
+                      accept=".pdf,.docx,.doc,.pptx,.ppt,.txt,.md,.epub,.csv"
+                      onChange={(e) => {
+                        if (e.target.files && e.target.files.length > 0) {
+                          processFile(e.target.files[0]);
+                        }
+                      }}
                     />
-
-                    <div className="w-12 h-12 rounded-full bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 flex items-center justify-center mx-auto mb-3">
+                    <div className="w-12 h-12 rounded-full bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 flex items-center justify-center mx-auto mb-3">
                       <Upload className="w-6 h-6" />
                     </div>
-
-                    <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200">
-                      Drag & drop files here, or click to browse
+                    <h3 className="font-bold text-slate-900 dark:text-slate-100 text-sm">
+                      Upload Document or Syllabus
                     </h3>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-sm mx-auto">
-                      Supports PDF, DOC, DOCX, PPT, PPTX, JPG, PNG, and WEBP. Maximum file size: 50MB.
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                      Click to browse or drag and drop your file here
                     </p>
-
-                    <div className="flex flex-wrap items-center justify-center gap-2 mt-4">
-                      <span className="px-2 py-1 bg-white dark:bg-slate-800 border rounded text-[10px] font-semibold text-slate-600 dark:text-slate-300 flex items-center gap-1">
-                        <FileText className="w-3 h-3 text-orange-500" /> PDF
-                      </span>
-                      <span className="px-2 py-1 bg-white dark:bg-slate-800 border rounded text-[10px] font-semibold text-slate-600 dark:text-slate-300 flex items-center gap-1">
-                        <FileSpreadsheet className="w-3 h-3 text-blue-500" /> Word (.docx)
-                      </span>
-                      <span className="px-2 py-1 bg-white dark:bg-slate-800 border rounded text-[10px] font-semibold text-slate-600 dark:text-slate-300 flex items-center gap-1">
-                        <Presentation className="w-3 h-3 text-amber-500" /> Slides (.pptx)
-                      </span>
-                      <span className="px-2 py-1 bg-white dark:bg-slate-800 border rounded text-[10px] font-semibold text-slate-600 dark:text-slate-300 flex items-center gap-1">
-                        <ImageIcon className="w-3 h-3 text-emerald-500" /> Images
-                      </span>
+                    <div className="mt-3 flex flex-wrap justify-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-400">
+                      <span>PDF</span> · <span>DOCX</span> · <span>TXT</span> · <span>Markdown</span> · <span>ePub</span> · <span>PPTX</span>
                     </div>
                   </div>
                 </div>
               )}
 
-              {/* TAB 2: YOUTUBE URL */}
+              {/* 2. YOUTUBE TAB */}
               {!isProcessing && activeTab === 'youtube' && (
-                <div className="space-y-3.5">
+                <div className="space-y-4">
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                       YouTube Video URL <span className="text-rose-500">*</span>
@@ -626,10 +746,10 @@ export const AddSourceModal: React.FC<AddSourceModalProps> = ({
                     <input
                       type="url"
                       id="input-youtube-url"
-                      placeholder="https://www.youtube.com/watch?v=... or https://youtu.be/..."
+                      placeholder="e.g. https://www.youtube.com/watch?v=..."
                       value={youtubeUrl}
                       onChange={(e) => setYoutubeUrl(e.target.value)}
-                      className="w-full px-3.5 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                     />
                   </div>
 
@@ -640,28 +760,11 @@ export const AddSourceModal: React.FC<AddSourceModalProps> = ({
                     <input
                       type="text"
                       id="input-youtube-title"
-                      placeholder="e.g. Physics Chapter 3: Gravitation Lecture"
+                      placeholder="e.g. Chapter Summary & Lecture"
                       value={youtubeTitle}
                       onChange={(e) => setYoutubeTitle(e.target.value)}
-                      className="w-full px-3.5 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                     />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                      Transcript or Video Notes (Optional)
-                    </label>
-                    <textarea
-                      id="input-youtube-transcript"
-                      rows={3}
-                      placeholder="Paste official captions, lesson transcript or timestamped notes (e.g., 01:23 Topic introduction)..."
-                      value={youtubeTranscript}
-                      onChange={(e) => setYoutubeTranscript(e.target.value)}
-                      className="w-full px-3.5 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    />
-                    <span className="text-[10px] text-slate-400 mt-0.5 block">
-                      Audio grounding will link with Gemini in Part 03.
-                    </span>
                   </div>
 
                   <div className="pt-2 flex justify-end">
@@ -670,55 +773,42 @@ export const AddSourceModal: React.FC<AddSourceModalProps> = ({
                       variant="primary"
                       onClick={() => processYouTube()}
                       disabled={!youtubeUrl.trim()}
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
                     >
-                      Verify & Add YouTube Video
+                      Attach YouTube Video
                     </Button>
                   </div>
                 </div>
               )}
 
-              {/* TAB 3: WEB URL */}
+              {/* 3. WEB TAB */}
               {!isProcessing && activeTab === 'web' && (
-                <div className="space-y-3.5">
+                <div className="space-y-4">
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                      Web Address / Article URL <span className="text-rose-500">*</span>
+                      Web Page Address (URL) <span className="text-rose-500">*</span>
                     </label>
                     <input
                       type="url"
                       id="input-web-url"
-                      placeholder="https://en.wikipedia.org/wiki/... or educational website"
+                      placeholder="e.g. https://en.wikipedia.org/wiki/..."
                       value={webUrl}
                       onChange={(e) => setWebUrl(e.target.value)}
-                      className="w-full px-3.5 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                     />
                   </div>
 
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                      Web Resource Title (Optional)
+                      Article / Resource Title (Optional)
                     </label>
                     <input
                       type="text"
                       id="input-web-title"
-                      placeholder="e.g. NCERT Science Chapter Summary"
+                      placeholder="e.g. Encyclopedia Topic Summary"
                       value={webTitle}
                       onChange={(e) => setWebTitle(e.target.value)}
-                      className="w-full px-3.5 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                      Article Content or Excerpt (Optional)
-                    </label>
-                    <textarea
-                      id="input-web-notes"
-                      rows={3}
-                      placeholder="Paste key article paragraphs or lesson excerpts from this web page..."
-                      value={webNotes}
-                      onChange={(e) => setWebNotes(e.target.value)}
-                      className="w-full px-3.5 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                     />
                   </div>
 
@@ -728,29 +818,175 @@ export const AddSourceModal: React.FC<AddSourceModalProps> = ({
                       variant="primary"
                       onClick={() => processWeb()}
                       disabled={!webUrl.trim()}
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
                     >
-                      Verify & Add Web Source
+                      Attach Web Source
                     </Button>
                   </div>
                 </div>
               )}
 
-              {/* TAB 4: TEXT / NOTES */}
+              {/* 4. AUDIO TAB */}
+              {!isProcessing && activeTab === 'audio' && (
+                <div className="space-y-4">
+                  <div
+                    onClick={() => handleBrowseFiles('audio')}
+                    className="border-2 border-dashed rounded-2xl p-6 text-center cursor-pointer transition-all border-slate-300 dark:border-slate-700 hover:border-purple-500 bg-purple-50/20 dark:bg-purple-950/10"
+                  >
+                    <input
+                      ref={audioInputRef}
+                      type="file"
+                      className="hidden"
+                      accept=".mp3,.wav,.m4a,.webm,.ogg"
+                      onChange={(e) => {
+                        if (e.target.files && e.target.files.length > 0) {
+                          processAudio(e.target.files[0]);
+                        }
+                      }}
+                    />
+                    <Music className="w-8 h-8 text-purple-600 dark:text-purple-400 mx-auto mb-2" />
+                    <h3 className="font-bold text-slate-900 dark:text-slate-100 text-sm">
+                      Upload Audio Lecture File
+                    </h3>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                      MP3, WAV, M4A, or WEBM audio recordings
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      Audio Lesson Title
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Classroom Lecture Audio Recording"
+                      value={audioTitle}
+                      onChange={(e) => setAudioTitle(e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      Audio Notes / Key Timestamps (Optional)
+                    </label>
+                    <textarea
+                      rows={3}
+                      placeholder="Paste lecture transcript or key topic timestamps..."
+                      value={audioNotes}
+                      onChange={(e) => setAudioNotes(e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    />
+                  </div>
+
+                  <div className="pt-1 flex justify-end">
+                    <Button
+                      variant="primary"
+                      onClick={() => processAudio()}
+                      disabled={!audioTitle.trim() && !audioNotes.trim()}
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
+                    >
+                      Save Audio Notes
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* 5. IMAGES TAB */}
+              {!isProcessing && activeTab === 'images' && (
+                <div className="space-y-4">
+                  <div
+                    onClick={() => handleBrowseFiles('images')}
+                    className="border-2 border-dashed rounded-2xl p-8 text-center cursor-pointer transition-all border-slate-300 dark:border-slate-700 hover:border-amber-500 bg-amber-50/20 dark:bg-amber-950/10"
+                  >
+                    <input
+                      ref={imageInputRef}
+                      type="file"
+                      className="hidden"
+                      accept=".jpg,.jpeg,.png,.webp"
+                      onChange={(e) => {
+                        if (e.target.files && e.target.files.length > 0) {
+                          processImageFile(e.target.files[0]);
+                        }
+                      }}
+                    />
+                    <ImageIcon className="w-10 h-10 text-amber-600 dark:text-amber-400 mx-auto mb-2" />
+                    <h3 className="font-bold text-slate-900 dark:text-slate-100 text-sm">
+                      Upload Educational Image or Diagram
+                    </h3>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                      Textbook diagram, handwritten blackboard photo, or chart
+                    </p>
+                    <div className="mt-2 text-[11px] text-slate-500 dark:text-slate-400">
+                      JPG, JPEG, PNG, WEBP (Optical text will be read into the lesson)
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* 6. GOOGLE TAB */}
+              {!isProcessing && activeTab === 'google' && (
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      Google Share Link <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="url"
+                      placeholder="e.g. https://docs.google.com/document/d/... or Drive link"
+                      value={googleUrl}
+                      onChange={(e) => setGoogleUrl(e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    />
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+                      Supports Google Docs, Google Slides, Google Sheets, or public Google Drive shared links.
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      Document Title (Optional)
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Google Docs Lesson Plan"
+                      value={googleTitle}
+                      onChange={(e) => setGoogleTitle(e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    />
+                  </div>
+
+                  <div className="pt-2 flex justify-end">
+                    <Button
+                      variant="primary"
+                      onClick={processGoogle}
+                      disabled={!googleUrl.trim()}
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
+                    >
+                      Attach Google Document
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* 7. TEXT / NOTES TAB */}
               {!isProcessing && activeTab === 'text' && (
-                <div className="space-y-3.5">
+                <div className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs text-slate-500">Quick Test Source:</span>
+                    <span className="text-xs text-slate-500 dark:text-slate-400">
+                      Paste notes, curriculum excerpts, or chapter summary
+                    </span>
                     <button
                       type="button"
-                      id="btn-load-photosynthesis-sample"
                       onClick={() => {
-                        setNoteTitle('Photosynthesis — Biology Core Curriculum');
-                        setNoteContent(`Topic: Photosynthesis\n\nOverview:\nPhotosynthesis is the process by which green plants and certain other organisms transform light energy into chemical energy. During photosynthesis in green plants, light energy is captured and used to convert water, carbon dioxide, and minerals into oxygen and energy-rich organic compounds (glucose).\n\nKey Mechanisms and Concepts:\n1. Chloroplast Structure:\nPhotosynthesis occurs within the chloroplasts of plant cells. Chloroplasts contain thylakoid membranes arranged into stacks called grana, bathed in an aqueous fluid termed stroma. Chlorophyll pigments embedded in thylakoid membranes absorb light wavelengths.\n\n2. Light Reactions (Thylakoid Membrane):\nLight-dependent reactions occur across the thylakoid membrane. Solar photons excite electrons in chlorophyll, causing photolysis of water molecules (releasing O2 gas). Electron transport generates proton gradients that drive ATP synthase to produce ATP and reduce NADP+ to NADPH.\n\n3. Dark Reactions / Calvin Cycle (Stroma):\nThe light-independent reactions (Calvin cycle) take place in the stroma. Carbon dioxide is fixed by the enzyme RuBisCO into 3-phosphoglycerate (3-PGA), which is then reduced using ATP and NADPH produced during the light reactions to form G3P and glucose. RuBP is continuously regenerated.\n\n4. ATP Production & Energy Currency:\nATP synthesis via photophosphorylation stores high-energy chemical bonds that fuel carbon fixation and plant metabolic processes.\n\n5. Factors Affecting Photosynthesis:\nKey limiting factors include Light Intensity, Carbon Dioxide Concentration, Temperature, and Water Availability (Blackman's Principle of Limiting Factors).`);
-                        setNoteLanguage('en');
+                        setNoteTitle('Photosynthesis & Plant Biology');
+                        setNoteContent(
+                          `Photosynthesis is the biological process by which green plants and certain other organisms transform light energy into chemical energy.\n\nDuring photosynthesis in green plants, light energy is captured and used to convert water, carbon dioxide, and minerals into oxygen and energy-rich organic compounds.\n\nEquation: 6CO2 + 6H2O + Light Energy -> C6H12O6 + 6O2\n\nChlorophyll in the thylakoid membrane is the green pigment responsible for absorbing blue and red light spectrums.`
+                        );
                       }}
-                      className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
+                      className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer"
                     >
-                      🧪 Load Photosynthesis Test Sample
+                      Load Biology Sample
                     </button>
                   </div>
 
@@ -762,22 +998,22 @@ export const AddSourceModal: React.FC<AddSourceModalProps> = ({
                       <input
                         type="text"
                         id="input-note-title"
-                        placeholder="e.g. Chapter 4 Key Concepts & Definitions"
+                        placeholder="e.g. Chapter 4 Key Concepts"
                         value={noteTitle}
                         onChange={(e) => setNoteTitle(e.target.value)}
-                        className="w-full px-3.5 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                       />
                     </div>
 
                     <div>
                       <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                        Primary Language
+                        Language
                       </label>
                       <select
                         id="select-note-language"
                         value={noteLanguage}
                         onChange={(e) => setNoteLanguage(e.target.value as SupportedLanguage)}
-                        className="w-full px-3.5 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
                       >
                         <option value="en">English</option>
                         <option value="hi">Hindi (हिन्दी)</option>
@@ -787,8 +1023,6 @@ export const AddSourceModal: React.FC<AddSourceModalProps> = ({
                         <option value="ta">Tamil (தமிழ்)</option>
                         <option value="gu">Gujarati (ગુજરાતી)</option>
                         <option value="kn">Kannada (ಕನ್ನಡ)</option>
-                        <option value="ml">Malayalam (മലയാളം)</option>
-                        <option value="pa">Punjabi (ਪੰਜਾਬੀ)</option>
                       </select>
                     </div>
                   </div>
@@ -799,7 +1033,7 @@ export const AddSourceModal: React.FC<AddSourceModalProps> = ({
                         Lesson Text or Notes <span className="text-rose-500">*</span>
                       </label>
                       <span className="text-[11px] text-slate-400 font-mono">
-                        {noteContent.split(/\s+/).filter(Boolean).length} words · {noteContent.length} chars
+                        {noteContent.split(/\s+/).filter(Boolean).length} words
                       </span>
                     </div>
                     <textarea
@@ -808,7 +1042,7 @@ export const AddSourceModal: React.FC<AddSourceModalProps> = ({
                       placeholder="Paste lesson text, curriculum summary, definitions, or textbook notes here..."
                       value={noteContent}
                       onChange={(e) => setNoteContent(e.target.value)}
-                      className="w-full px-3.5 py-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                     />
                   </div>
 
@@ -818,6 +1052,7 @@ export const AddSourceModal: React.FC<AddSourceModalProps> = ({
                       variant="primary"
                       onClick={() => processText()}
                       disabled={!noteContent.trim()}
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
                     >
                       Save Lesson Notes
                     </Button>
@@ -831,11 +1066,11 @@ export const AddSourceModal: React.FC<AddSourceModalProps> = ({
         {/* Modal Footer */}
         <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30 flex items-center justify-between text-xs">
           <div className="flex items-center gap-2">
-            <span className="font-semibold text-slate-600 dark:text-slate-400">Default Priority:</span>
+            <span className="font-semibold text-slate-600 dark:text-slate-400">Reference Priority:</span>
             <select
               value={priority}
               onChange={(e) => setPriority(e.target.value as SourcePriority)}
-              className="px-2 py-1 rounded bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 cursor-pointer"
+              className="px-2.5 py-1 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 cursor-pointer"
             >
               <option value="primary">Primary Reference</option>
               <option value="supporting">Supporting Reference</option>

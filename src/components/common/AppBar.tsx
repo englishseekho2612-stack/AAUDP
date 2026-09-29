@@ -7,28 +7,30 @@ import {
   Sparkles,
   Sun,
   Moon,
-  CheckCircle,
   Clock,
   ArrowLeft,
   Wifi,
   WifiOff,
+  Bot,
 } from 'lucide-react';
 
 interface AppBarProps {
   currentView: AppView;
   onNavigate: (view: AppView) => void;
   onBackToProjects?: () => void;
+  onOpenAskArpitSir?: () => void;
 }
 
 export const AppBar: React.FC<AppBarProps> = ({
   currentView,
   onNavigate,
   onBackToProjects,
+  onOpenAskArpitSir,
 }) => {
   const { resolvedTheme, setTheme } = useTheme();
-  const { activeProject, isSaving, lastSaved } = useProject();
+  const { activeProject, isSaving } = useProject();
 
-  // Network offline state monitoring (Section 9)
+  // Network offline state monitoring
   const [networkStatus, setNetworkStatus] = useState<'connected' | 'offline' | 'reconnecting'>(
     typeof navigator !== 'undefined' && !navigator.onLine ? 'offline' : 'connected'
   );
@@ -71,15 +73,15 @@ export const AppBar: React.FC<AppBarProps> = ({
             <button
               id="btn-appbar-back"
               onClick={onBackToProjects}
-              className="p-2 -ml-2 rounded-lg text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-              title="Back to All Projects"
-              aria-label="Back to projects"
+              className="p-2 -ml-2 rounded-lg text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+              title="Back to All Lessons"
+              aria-label="Back to lessons"
             >
               <ArrowLeft className="w-5 h-5" />
             </button>
             <div className="flex flex-col">
-              <span className="text-xs font-semibold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
-                Active Project
+              <span className="text-xs font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                Active Lesson
               </span>
               <h1 className="text-sm sm:text-base font-bold text-slate-900 dark:text-slate-100 truncate max-w-[200px] sm:max-w-xs md:max-w-md">
                 {activeProject.name}
@@ -100,7 +102,7 @@ export const AppBar: React.FC<AppBarProps> = ({
                 ARPIT ACADEMY UDAIPURA
               </span>
               <span className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 tracking-wide block">
-                Learn • Teach • Understand <span className="hidden sm:inline font-normal text-slate-400">· With Arpit Sir</span>
+                Learn • Understand • Visualize • Teach <span className="hidden sm:inline font-normal text-slate-400">· With Arpit Sir</span>
               </span>
             </div>
           </button>
@@ -108,12 +110,12 @@ export const AppBar: React.FC<AppBarProps> = ({
       </div>
 
       <div className="flex items-center gap-2 sm:gap-3">
-        {/* Network Status Pill (Section 9) */}
+        {/* Network Status Pill */}
         {networkStatus === 'offline' && (
           <div
             id="network-status-offline"
             className="flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900"
-            title="Device is offline. All local project features and video editing remain operational."
+            title="Device is offline. All local features remain operational."
           >
             <WifiOff className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />
             <span className="hidden sm:inline">Offline (Local Mode)</span>
@@ -138,25 +140,33 @@ export const AppBar: React.FC<AppBarProps> = ({
             {isSaving ? (
               <>
                 <Clock className="w-3.5 h-3.5 text-amber-500 animate-spin" />
-                <span>Auto-saving...</span>
+                <span>Saving lesson...</span>
               </>
             ) : (
-              <>
-                <CheckCircle className="w-3.5 h-3.5 text-emerald-500" />
-                <span>
-                  {lastSaved ? 'Saved locally' : 'Local storage ready'}
-                </span>
-              </>
+              <span className="text-[11px] text-slate-500">Auto-saved</span>
             )}
           </div>
         )}
 
+        {/* Global Ask Arpit Sir Button */}
+        {onOpenAskArpitSir && (
+          <button
+            id="btn-appbar-ask-arpit-sir"
+            onClick={onOpenAskArpitSir}
+            title="Ask Arpit Sir"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 hover:bg-indigo-100 text-xs font-bold transition-all cursor-pointer shadow-2xs"
+          >
+            <Bot className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+            <span className="hidden sm:inline">Ask Arpit Sir</span>
+          </button>
+        )}
+
+        {/* Theme Toggle */}
         <button
           id="btn-toggle-theme"
           onClick={toggleTheme}
-          className="p-2.5 rounded-lg text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center cursor-pointer"
+          className="p-2 rounded-lg text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
           title={`Switch to ${resolvedTheme === 'dark' ? 'Light' : 'Dark'} Mode`}
-          aria-label="Toggle theme mode"
         >
           {resolvedTheme === 'dark' ? (
             <Sun className="w-5 h-5 text-amber-400" />

@@ -246,14 +246,15 @@ export const TeachingTopBar: React.FC<TeachingTopBarProps> = ({
           <Eye className="w-4 h-4" />
         </button>
 
-        {/* Part 05 YouTube Live Broadcast Hub button */}
+        {/* YouTube Live Broadcast Hub button */}
         <button
           id="btn-open-youtube-live-hub"
           onClick={onOpenYouTubeLiveModal}
-          title="YouTube Live Broadcast Hub (Part 05 Integration)"
-          className="p-1.5 text-red-600 hover:text-red-700 dark:text-red-400 bg-red-50 dark:bg-red-950/40 hover:bg-red-100 rounded-lg transition-colors cursor-pointer hidden md:inline-flex"
+          title="YouTube Live Broadcast Hub"
+          className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-bold rounded-lg text-white bg-rose-600 hover:bg-rose-700 shadow-xs transition-colors cursor-pointer"
         >
-          <Radio className="w-4 h-4" />
+          <Radio className="w-3.5 h-3.5 animate-pulse" />
+          <span>YouTube Live</span>
         </button>
 
         {/* Mic & DSP Settings trigger */}

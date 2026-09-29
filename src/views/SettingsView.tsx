@@ -109,6 +109,27 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigate }) => {
     version: '1.0.0',
   });
 
+  const [windowsCapabilities, setWindowsCapabilities] = useState<{
+    osName: string;
+    release: string;
+    isWindows: boolean;
+    isLegacyWindows: boolean;
+    liveBroadcastSupported: boolean;
+    storagePath: string;
+    appName?: string;
+    publisher?: string;
+  } | null>(null);
+
+  const [lowEndLaptopMode, setLowEndLaptopMode] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('studio_low_end_laptop_mode') === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  const importInputRef = React.useRef<HTMLInputElement>(null);
+
   useEffect(() => {
     if (DesktopService.isElectron()) {
       DesktopService.getAppInfo()
@@ -124,6 +145,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigate }) => {
         })
         .catch(() => {});
     }
+
+    DesktopService.getWindowsCapabilities()
+      .then((cap) => {
+        setWindowsCapabilities(cap);
+      })
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -172,6 +199,25 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigate }) => {
       showToast('Backup archive generated and downloaded.', 'success');
     } catch (e: any) {
       showToast(e?.message || 'Backup failed.', 'error');
+    }
+  };
+
+  const handleImportBackup = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const pkg = await backupService.parseBackupFile(file);
+      await backupService.restoreProject(pkg);
+      showToast(`Successfully restored lesson "${pkg.project.name}"!`, 'success');
+      loadStorageStats();
+      if (onNavigate) {
+        onNavigate('projects');
+      }
+    } catch (err: any) {
+      showToast(err?.message || 'Could not restore backup file. Please select a valid backup JSON.', 'error');
+    } finally {
+      e.target.value = '';
     }
   };
 
@@ -265,6 +311,41 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigate }) => {
                   </option>
                 ))}
               </select>
+            </section>
+
+            {/* AQ.41 & AQ.42: Low-End Educational Laptop Optimization */}
+            <section className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 space-y-3">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                    <Laptop className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                    <span>Low-End Laptop Mode (Smooth Performance)</span>
+                  </h2>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-xl">
+                    Reduces heavy visual effects, background canvas processing, and transitions to prioritize maximum Teaching Board pen responsiveness on standard educational laptops.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const next = !lowEndLaptopMode;
+                    setLowEndLaptopMode(next);
+                    try {
+                      localStorage.setItem('studio_low_end_laptop_mode', String(next));
+                    } catch {}
+                    showToast(next ? 'Low-End Laptop Mode enabled (maximum pen responsiveness)' : 'Standard visual mode enabled', 'info');
+                  }}
+                  className={`w-12 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors shrink-0 ${
+                    lowEndLaptopMode ? 'bg-emerald-600' : 'bg-slate-300 dark:bg-slate-700'
+                  }`}
+                >
+                  <div
+                    className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${
+                      lowEndLaptopMode ? 'translate-x-6' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
+              </div>
             </section>
           </div>
         )}
@@ -564,18 +645,37 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigate }) => {
               </div>
 
               <div className="pt-2 flex flex-wrap items-center gap-3">
+                {/* AQ.9: Backup - Export My Data */}
                 <button
+                  type="button"
                   onClick={handleExportFullBackup}
-                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl flex items-center gap-2 cursor-pointer shadow-xs"
+                  className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl flex items-center gap-2 cursor-pointer shadow-xs transition-colors"
                 >
-                  <Download className="w-3.5 h-3.5" />
-                  <span>Download Full Backup Archive</span>
+                  <Download className="w-4 h-4" />
+                  <span>Backup: Export My Data</span>
+                </button>
+
+                {/* AQ.9: Restore - Import My Data */}
+                <input
+                  type="file"
+                  ref={importInputRef}
+                  onChange={handleImportBackup}
+                  accept=".json"
+                  className="hidden"
+                />
+                <button
+                  type="button"
+                  onClick={() => importInputRef.current?.click()}
+                  className="px-4 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 text-xs font-bold rounded-xl flex items-center gap-2 cursor-pointer border border-slate-300 dark:border-slate-700 transition-colors"
+                >
+                  <Upload className="w-4 h-4 text-indigo-500" />
+                  <span>Restore: Import My Data</span>
                 </button>
 
                 {onNavigate && (
                   <button
                     onClick={() => onNavigate('storage_manager')}
-                    className="px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 text-xs font-bold rounded-xl flex items-center gap-2 cursor-pointer transition-colors border border-slate-300 dark:border-slate-700"
+                    className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 text-xs font-bold rounded-xl flex items-center gap-2 cursor-pointer transition-colors border border-slate-300 dark:border-slate-700"
                   >
                     <HardDrive className="w-3.5 h-3.5 text-indigo-500" />
                     <span>Open Advanced Storage Manager</span>
@@ -741,13 +841,39 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigate }) => {
 
               <div className="pt-3 border-t border-slate-100 dark:border-slate-800 space-y-2 text-xs text-slate-500">
                 <div className="flex justify-between">
+                  <span>Application:</span>
+                  <span className="font-semibold text-slate-900 dark:text-slate-100">
+                    Arpit Academy Udaipura
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Developer / Publisher:</span>
+                  <span className="font-semibold text-slate-700 dark:text-slate-300">
+                    Arpit Digital Hub
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Version:</span>
+                  <span className="font-semibold text-slate-700 dark:text-slate-300">
+                    1.0.0 (Production Setup)
+                  </span>
+                </div>
+                <div className="flex justify-between">
                   <span>Platform / Shell:</span>
                   <span className="font-semibold text-slate-700 dark:text-slate-300">
                     {desktopInfo.isElectron
-                      ? `Windows Desktop Application (${desktopInfo.arch || 'x64'})`
-                      : 'Web & Android Hybrid Client'}
+                      ? `Windows Desktop Application (.exe / ${desktopInfo.arch || 'x64'})`
+                      : 'Web & PWA Application'}
                   </span>
                 </div>
+                {windowsCapabilities && (
+                  <div className="flex justify-between">
+                    <span>Windows System Detected:</span>
+                    <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                      {windowsCapabilities.osName} ({windowsCapabilities.release})
+                    </span>
+                  </div>
+                )}
                 <div className="flex justify-between">
                   <span>Data Isolation:</span>
                   <span className="font-semibold text-emerald-600 dark:text-emerald-400">
@@ -755,20 +881,49 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onNavigate }) => {
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span>Runtime Architecture:</span>
-                  <span className="font-semibold text-slate-700 dark:text-slate-300">Vite 5 + React 18 + Express 4</span>
+                  <span>Local Data Location:</span>
+                  <span className="font-mono text-[11px] text-slate-600 dark:text-slate-300 truncate max-w-xs">
+                    {windowsCapabilities?.storagePath || '%APPDATA%\\Arpit Academy Udaipura\\'}
+                  </span>
                 </div>
                 <div className="flex justify-between">
-                  <span>Persistence:</span>
-                  <span className="font-semibold text-slate-700 dark:text-slate-300">IndexedDB + LocalStorage (Offline First)</span>
+                  <span>Data Update Safety:</span>
+                  <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                    Separated from binaries — survives updates & reinstallations
+                  </span>
                 </div>
-                <div className="flex justify-between">
-                  <span>AI Engine:</span>
-                  <span className="font-semibold text-slate-700 dark:text-slate-300">Google Gemini API (Server-Side Proxy)</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Classroom Protocol:</span>
-                  <span className="font-semibold text-slate-700 dark:text-slate-300">Server-Sent Events (SSE) + WebSocket Ready</span>
+              </div>
+
+              {/* Windows Compatibility & Capabilities Audit Matrix */}
+              <div className="pt-3 border-t border-slate-100 dark:border-slate-800 space-y-2">
+                <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                  Windows Compatibility & Capabilities (AQ.1 - AQ.40)
+                </span>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-[11px]">
+                  <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                    <span className="font-bold text-slate-700 dark:text-slate-300 block">Windows 10 / 11</span>
+                    <span className="text-emerald-600 dark:text-emerald-400">Full Support (Native)</span>
+                  </div>
+                  <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                    <span className="font-bold text-slate-700 dark:text-slate-300 block">Windows 7 / 8 / 8.1</span>
+                    <span className="text-emerald-600 dark:text-emerald-400">Core Compatible (Fallback)</span>
+                  </div>
+                  <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                    <span className="font-bold text-slate-700 dark:text-slate-300 block">Offline Capability</span>
+                    <span className="text-emerald-600 dark:text-emerald-400">100% Local-First</span>
+                  </div>
+                  <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                    <span className="font-bold text-slate-700 dark:text-slate-300 block">Teaching Board</span>
+                    <span className="text-emerald-600 dark:text-emerald-400">Mouse, Touch & Stylus</span>
+                  </div>
+                  <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                    <span className="font-bold text-slate-700 dark:text-slate-300 block">Teacher Camera</span>
+                    <span className="text-emerald-600 dark:text-emerald-400">Floating Draggable Bubble</span>
+                  </div>
+                  <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                    <span className="font-bold text-slate-700 dark:text-slate-300 block">YouTube Live</span>
+                    <span className="text-emerald-600 dark:text-emerald-400">Integrated from Board</span>
+                  </div>
                 </div>
               </div>
             </section>

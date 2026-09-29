@@ -1,19 +1,70 @@
 {
-  "name": "arpit-academy-teaching-studio",
+  "name": "arpit-academy-udaipura",
+  "productName": "Arpit Academy Udaipura",
   "private": true,
   "version": "1.0.0",
+  "author": "Arpit Digital Hub",
+  "description": "Arpit Academy Udaipura - Learn • Understand • Visualize • Teach. With Arpit Sir.",
+  "main": "electron/main.cjs",
   "type": "module",
   "scripts": {
     "dev": "tsx server.ts",
     "build": "vite build && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
     "start": "node dist/server.cjs",
     "preview": "vite preview",
-    "clean": "rm -rf dist server.js dist/server.cjs",
+    "clean": "rm -rf dist server.js dist/server.cjs dist_electron",
     "lint": "tsc --noEmit",
+    "electron:dev": "ELECTRON_DEV=true electron electron/main.cjs",
+    "electron:build:win": "npm run build && electron-builder --win",
+    "electron:pack": "electron-builder --dir",
     "cap:sync": "npx cap sync android",
     "cap:copy": "npx cap copy android",
     "android:prepare": "node scripts/prepare-android.js",
     "android:sync": "npm run build && node scripts/prepare-android.js"
+  },
+  "build": {
+    "appId": "com.arpitdigitalhub.arpitacademyudaipura",
+    "productName": "Arpit Academy Udaipura",
+    "copyright": "Copyright © 2026 Arpit Digital Hub",
+    "directories": {
+      "output": "dist_electron",
+      "buildResources": "electron/assets"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64",
+            "ia32"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "electron/assets/icon.ico",
+      "artifactName": "ArpitAcademyUdaipura-Setup.${ext}",
+      "publisherName": "Arpit Digital Hub"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": "always",
+      "createStartMenuShortcut": true,
+      "shortcutName": "Arpit Academy Udaipura",
+      "uninstallDisplayName": "Arpit Academy Udaipura",
+      "deleteAppDataOnUninstall": false,
+      "runAfterFinish": true
+    }
   },
   "dependencies": {
     "@capacitor/android": "^8.5.1",

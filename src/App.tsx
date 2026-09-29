@@ -31,6 +31,7 @@ import { CurriculumHubView } from './views/CurriculumHubView';
 import { StudentPortalView } from './views/StudentPortalView';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { WindowsTitleBar } from './components/desktop/WindowsTitleBar';
+import { AskArpitSirModal } from './components/ai/AskArpitSirModal';
 
 const StudioMainLayout: React.FC = () => {
   const { activeProject, projects, openProject, closeProject } = useProject();
@@ -38,6 +39,7 @@ const StudioMainLayout: React.FC = () => {
   const [activeTeachingClassCode, setActiveTeachingClassCode] = useState<string>('STUDIO1');
   const [studentClassCode, setStudentClassCode] = useState<string>('STUDIO1');
   const [autoOpenTeachingStudio, setAutoOpenTeachingStudio] = useState<boolean>(false);
+  const [isGlobalAskArpitSirOpen, setIsGlobalAskArpitSirOpen] = useState<boolean>(false);
   const [showFirstLaunchModal, setShowFirstLaunchModal] = useState<boolean>(() => {
     try {
       return localStorage.getItem('studio_onboarding_completed') !== 'true';
@@ -152,6 +154,7 @@ const StudioMainLayout: React.FC = () => {
         currentView={currentView}
         onNavigate={handleNavigate}
         onBackToProjects={handleBackToProjects}
+        onOpenAskArpitSir={() => setIsGlobalAskArpitSirOpen(true)}
       />
 
       {/* Section 10: Data Loss Protection & Recovery Banner */}
@@ -163,6 +166,7 @@ const StudioMainLayout: React.FC = () => {
         <Sidebar
           currentView={currentView}
           onNavigate={handleNavigate}
+          onOpenAskArpitSir={() => setIsGlobalAskArpitSirOpen(true)}
         />
 
         {/* Scrollable Viewport */}
@@ -175,6 +179,7 @@ const StudioMainLayout: React.FC = () => {
               <HomeView
                 onNavigate={handleNavigate}
                 onOpenProject={handleOpenProject}
+                onStartTeachingStudio={(code, pid) => handleStartTeachingStudio(code || 'STUDIO1', pid)}
               />
             )}
 
@@ -182,6 +187,7 @@ const StudioMainLayout: React.FC = () => {
               <ProjectsView
                 onOpenProject={handleOpenProject}
                 onCreateNew={() => setCurrentView('create')}
+                onStartTeachingStudio={(pid) => handleStartTeachingStudio('STUDIO1', pid)}
               />
             )}
 
@@ -245,6 +251,17 @@ const StudioMainLayout: React.FC = () => {
       <BottomNav
         currentView={currentView}
         onNavigate={handleNavigate}
+        onOpenAskArpitSir={() => setIsGlobalAskArpitSirOpen(true)}
+      />
+
+      {/* Global Ask Arpit Sir AI Tutor Dialog */}
+      <AskArpitSirModal
+        isOpen={isGlobalAskArpitSirOpen}
+        onClose={() => setIsGlobalAskArpitSirOpen(false)}
+        onOpenTeachingBoard={() => {
+          setIsGlobalAskArpitSirOpen(false);
+          handleStartTeachingStudio('STUDIO1');
+        }}
       />
 
       {/* Global Toast Notifications */}

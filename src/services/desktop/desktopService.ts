@@ -138,6 +138,25 @@ export class DesktopService {
     return null;
   }
 
+  /**
+   * Retrieve Windows capabilities and compatibility details
+   */
+  public static async getWindowsCapabilities(): Promise<any> {
+    if (this.isElectron() && window.electronAPI?.getWindowsCapabilities) {
+      return await window.electronAPI.getWindowsCapabilities();
+    }
+    return {
+      osName: this.isWindows() ? 'Windows (Web/PWA)' : 'Web Client',
+      release: 'Standard',
+      isWindows: this.isWindows(),
+      isLegacyWindows: false,
+      liveBroadcastSupported: true,
+      storagePath: 'Browser IndexedDB / Local Storage',
+      appName: 'Arpit Academy Udaipura',
+      publisher: 'Arpit Digital Hub',
+    };
+  }
+
   // Window Controls
   public static minimizeWindow(): void {
     if (this.isElectron()) window.electronAPI?.minimizeWindow();

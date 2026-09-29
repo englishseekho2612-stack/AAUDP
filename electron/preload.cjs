@@ -46,4 +46,5 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // Application Info (Version, Environment, Architecture)
   getAppInfo: () => ipcRenderer.invoke('app:getInfo'),
+  getWindowsCapabilities: () => ipcRenderer.invoke('system:getWindowsCapabilities'),
 });

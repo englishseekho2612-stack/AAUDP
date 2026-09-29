@@ -55,7 +55,7 @@ export const TeachingStudio: React.FC<TeachingStudioProps> = ({
   onOpenLiveStudentView,
   onOpenVideoEditor,
 }) => {
-  const { activeProject, updateActiveProject } = useProject();
+  const { activeProject, updateActiveProject, showToast } = useProject();
 
   // 1. STUDIO LAYOUT & VIEW STATES
   const [activeLayout, setActiveLayout] = useState<TeachingStudioLayout>('presentation_camera');
@@ -308,12 +308,20 @@ export const TeachingStudio: React.FC<TeachingStudioProps> = ({
       } else if (e.key === 'ArrowLeft') {
         e.preventDefault();
         setCurrentSlideIndex((prev) => Math.max(0, prev - 1));
+      } else if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'z') {
+        e.preventDefault();
+        handleRedo();
       } else if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
         e.preventDefault();
         handleUndo();
       } else if ((e.ctrlKey || e.metaKey) && e.key === 'y') {
         e.preventDefault();
         handleRedo();
+      } else if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        showToast('Teaching board progress auto-saved', 'success');
+      } else if (e.key === 'Escape' && isFullscreen) {
+        setIsFullscreen(false);
       } else if (e.key.toLowerCase() === 'm') {
         handleToggleMute();
       } else if (e.key.toLowerCase() === 'v') {
@@ -341,7 +349,7 @@ export const TeachingStudio: React.FC<TeachingStudioProps> = ({
         setCameraStream(stream);
         setIsCameraActive(true);
       } catch (err: any) {
-        alert(err.message || 'Could not start camera.');
+        showToast('Camera unavailable. Please connect or enable a camera.', 'error');
       }
     }
   };

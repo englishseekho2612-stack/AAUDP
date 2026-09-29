@@ -16,8 +16,20 @@ export interface ElectronAppPaths {
   temp: string;
 }
 
+export interface WindowsCapabilities {
+  osName: string;
+  release: string;
+  isWindows: boolean;
+  isLegacyWindows: boolean;
+  liveBroadcastSupported: boolean;
+  storagePath: string;
+  appName: string;
+  publisher: string;
+}
+
 export interface ElectronAppInfo {
   name: string;
+  publisher?: string;
   version: string;
   platform: string;
   arch: string;
@@ -73,8 +85,9 @@ export interface ElectronAPI {
   openPath: (targetPath: string) => Promise<string>;
   openExternal: (url: string) => Promise<boolean>;
 
-  // App Info
+  // App Info & Windows Capabilities
   getAppInfo: () => Promise<ElectronAppInfo>;
+  getWindowsCapabilities: () => Promise<WindowsCapabilities>;
 }
 
 declare global {
